@@ -1,6 +1,6 @@
 <div align="center">
 
-# Util library for Go.
+# Utility library for Go
 
 </div>
 
