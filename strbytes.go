@@ -21,7 +21,6 @@ import (
 	"unsafe"
 )
 
-
 // Str2Bytes converts string to a byte slice without memory allocation.
 //
 // Note it may break if string and/or slice header will change

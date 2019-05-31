@@ -17,8 +17,8 @@
 package x
 
 import (
-	"testing"
 	"bytes"
+	"testing"
 )
 
 func TestStr2Bytes(t *testing.T) {
@@ -62,22 +62,22 @@ func BenchmarkStr2Bytes(b *testing.B) {
 	var str = "aaaaaaaaaaaaaaaaa"
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-        Str2Bytes(str)
-    }
+		Str2Bytes(str)
+	}
 }
 
 func BenchmarkStr2BytesOrigin(b *testing.B) {
 	var str = "aaaaaaaaaaaaaaaaa"
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
-        _ = []byte(str)
-    }
+		_ = []byte(str)
+	}
 }
 
 func BenchmarkBytes2Str(b *testing.B) {
 	var data = []byte("aaaaaaaaaaaaaaaaaad")
 	b.ReportAllocs()
-	for i := 0 ; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		Bytes2Str(data)
 	}
 }
@@ -85,7 +85,7 @@ func BenchmarkBytes2Str(b *testing.B) {
 func BenchmarkBytes2StrOrigin(b *testing.B) {
 	var data = []byte("aaaaaaaaaaaaaaaaaad")
 	b.ReportAllocs()
-	for i := 0 ; i < b.N; i++ {
+	for i := 0; i < b.N; i++ {
 		_ = string(data)
 	}
 }

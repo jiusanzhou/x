@@ -35,7 +35,7 @@ type UUID [16]byte
 // Well known namespace IDs and UUIDs
 var (
 	rander = rand.Reader // random function
-	Nil           UUID // empty UUID, all zeros
+	Nil    UUID          // empty UUID, all zeros
 )
 
 // String returns the string form of uuid, xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
