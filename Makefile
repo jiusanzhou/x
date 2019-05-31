@@ -9,9 +9,8 @@ default: test
 
 getdeps:
 	@echo "Installing golint" && go get -u golang.org/x/lint/golint
-	@echo "Installing gometalinter" && go get -u github.com/alecthomas/gometalinter
 
-verifiers: lint metalinter
+verifiers: lint
 
 fmt:
 	@echo "Running $@"
@@ -20,16 +19,6 @@ fmt:
 lint:
 	@echo "Running $@"
 	@${GOPATH}/bin/golint -set_exit_status ./...
-
-metalinter:
-	@${GOPATH}/bin/gometalinter --install
-	@${GOPATH}/bin/gometalinter --disable-all \
-		-E vet \
-		-E gofmt \
-		-E misspell \
-		-E ineffassign \
-		-E goimports \
-		-E deadcode --tests --vendor ./...
 
 check: verifiers test
 
