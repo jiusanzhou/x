@@ -85,7 +85,7 @@ BenchmarkBytes2Str            2000000000               0.46 ns/op            0 B
 BenchmarkBytes2StrOrigin      100000000               10.3 ns/op             0 B/op          0 allocs/op
 ```
 
-:tada: Amost 20 faster then original operation!
+:tada: Almost 20 faster then original operation to handle `"aaa"`!
 
 ### UUID
 
