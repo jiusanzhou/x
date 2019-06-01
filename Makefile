@@ -31,7 +31,7 @@ bench:
 	@go test -bench=. -benchmem -benchtime=5s ./...
 
 coverage:
-	@curl -s https://codecov.io/bash | bash
+	@bash ./gen-coverage.sh
 
 clean:
 	@echo "Cleaning up all the generated files"
