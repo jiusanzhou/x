@@ -9,6 +9,7 @@ import (
 // Command is the main struct which comes from cobar
 type Command struct {
 	*cobra.Command
+	setflag func(c *Command)
 }
 
 // New returns a wraper of cobra

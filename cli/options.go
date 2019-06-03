@@ -1,6 +1,8 @@
 package cli
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
 // Option set the command with value
 type Option func(c *Command)
@@ -13,9 +15,10 @@ func Version(v string) Option {
 }
 
 // Name returns option to set use
-func Name(name string) Option {
+func Name(names ...string) Option {
 	return func(c *Command) {
-		c.Command.Use = name
+		c.Command.Use = names[0]
+		c.Command.Aliases = append(c.Command.Aliases, names[1:]...)
 	}
 }
 
@@ -47,5 +50,19 @@ func Long(desc string) Option {
 func Description(desc string) Option {
 	return func(c *Command) {
 		c.Command.Long = desc
+	}
+}
+
+// Example returns option to set example
+func Example(ex string) Option {
+	return func(c *Command) {
+		c.Command.Example = ex
+	}
+}
+
+// SetFlags ...
+func SetFlags(setflag func(c *Command)) Option {
+	return func(c *Command) {
+		c.setflag = setflag
 	}
 }

@@ -6,6 +6,13 @@ func New(opts ...Option) *Command {
 	for _, o := range opts {
 		o(c)
 	}
+
+	// we must do it at init time.
+	// load set flag
+	if c.setflag != nil {
+		c.setflag(c)
+	}
+
 	return c
 }
 
@@ -22,5 +29,6 @@ func (c *Command) Run(opts ...Option) error {
 	for _, o := range opts {
 		o(c)
 	}
+
 	return c.Command.Execute()
 }
