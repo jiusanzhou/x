@@ -71,6 +71,19 @@ func (r *Runner) Run(ctx context.Context, s string, opts ...Option) error {
 		rdr io.Reader
 		err error
 	)
+	
+	var rn = r
+
+	// must copy for overwrite options
+	rn, err = r.copy()
+	if err != nil {
+		return err
+	}
+
+	// reload options
+	for _, o := range opts {
+		o(rn.runner)
+	}
 
 	if s[0] == '@' {
 		rdr, err = os.Open(s[1:])
@@ -84,18 +97,6 @@ func (r *Runner) Run(ctx context.Context, s string, opts ...Option) error {
 	prg, err = parser.Parse(rdr, "__todo__")
 	if err != nil {
 		return err
-	}
-
-	// run this command
-	// create a new runner
-
-	var rn = r
-	// if we are running, use a copied runner
-	if r.running {
-		rn, err = r.copy()
-		if err != nil {
-			return err
-		}
 	}
 
 	// TODO: add resource limit
