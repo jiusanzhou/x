@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-//item group represents a single "Options" block
-//in the help text ouput
+// item group represents a single "Options" block
+// in the help text ouput
 type itemGroup struct {
 	name  string
 	flags []*item
@@ -17,9 +17,9 @@ type itemGroup struct {
 
 const defaultGroup = ""
 
-//item is the structure representing a
-//an opt item. it also implements flag.Value
-//generically using reflect.
+// item is the structure representing a
+// an opt item. it also implements flag.Value
+// generically using reflect.
 type item struct {
 	val       reflect.Value
 	mode      string
@@ -30,7 +30,7 @@ type item struct {
 	help      string
 	defstr    string
 	slice     bool
-	min, max  int //valid if slice
+	min, max  int // valid if slice
 	noarg     bool
 	sets      int
 }

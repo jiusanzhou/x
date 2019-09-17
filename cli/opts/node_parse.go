@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -19,11 +20,11 @@ func (n *node) parse(args ...string) error {
 		return err
 	}
 
-	//create a new flagset, and link each item
+	// create a new flagset, and link each item
 	flagset := flag.NewFlagSet(n.item.name, flag.ContinueOnError)
 	flagset.SetOutput(ioutil.Discard)
 	for _, item := range n.flags() {
-		//add shortnames where possible
+		// add shortnames where possible
 		if item.shortName == "" && len(item.name) >= 2 {
 			if s := item.name[0:1]; !n.flagNames[s] {
 				item.shortName = s
@@ -36,19 +37,22 @@ func (n *node) parse(args ...string) error {
 			flagset.Var(item, sn, "")
 		}
 
-		// k := item.envName
-		// if item.set() || k == "" {
-		// 	continue
-		// }
-		// v := os.Getenv(k)
-		// if v == "" {
-		// 	continue
-		// }
-		// err := item.Set(v)
-		// if err != nil {
-		// 	return fmt.Errorf("flag '%s' cannot set invalid env var (%s): %s", item.name, k, err)
-		// }
+		k := item.envName
+		if item.set() || k == "" {
+			continue
+		}
+		v := os.Getenv(k)
+		if v == "" {
+			continue
+		}
+		err := item.Set(v)
+		if err != nil {
+			return fmt.Errorf("flag '%s' cannot set invalid env var (%s): %s", item.name, k, err)
+		}
+
+		// TODO: supported config path
 	}
+
 	if err := flagset.Parse(args); err != nil {
 		//insert flag errors into help text
 		n.err = err
@@ -76,9 +80,9 @@ func (n *node) addStructFields(group string, sv reflect.Value) error {
 func (n *node) addStructField(group string, sf reflect.StructField, val reflect.Value) error {
 	kv := newKV(sf.Tag.Get("opts"))
 	help := sf.Tag.Get("help")
-	mode := sf.Tag.Get("type") //legacy versions of this package used "type"
+	mode := sf.Tag.Get("type") // legacy versions of this package used "type"
 	if m := sf.Tag.Get("mode"); m != "" {
-		mode = m //allow "mode" to be used directly, undocumented!
+		mode = m // allow "mode" to be used directly, undocumented!
 	}
 	if err := n.addKVField(kv, sf.Name, help, mode, group, val); err != nil {
 		return err
@@ -123,12 +127,12 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group string, val reflect.V
 			mode = "flag"
 		}
 	}
-	//use the specified group
+	// use the specified group
 	if g, ok := kv.take("group"); ok {
 		group = g
 	}
 
-	//new kv help defs supercede legacy defs
+	// new kv help defs supercede legacy defs
 	if h, ok := kv.take("help"); ok {
 		help = h
 	}
@@ -141,7 +145,7 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group string, val reflect.V
 	i.mode = mode
 	i.name = name
 	i.help = help
-	//insert either as flag or as argument
+	// insert either as flag or as argument
 	switch mode {
 	case "flag":
 		//set default text
@@ -192,7 +196,7 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group string, val reflect.V
 		g := n.flagGroup(group)
 		g.flags = append(g.flags, i)
 	case "arg":
-		//minimum number of items
+		// minimum number of items
 		if i.slice {
 			if m, ok := kv.take("min"); ok {
 				min, err := strconv.Atoi(m)
@@ -209,19 +213,16 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group string, val reflect.V
 				i.max = max
 			}
 		}
-		//validations
+		// validations
 		if group != "" {
 			return n.errorf("args cannot be placed into a group")
-		}
-		if len(n.cmds) > 0 {
-			return n.errorf("args and commands cannot be used together")
 		}
 		for _, item := range n.args {
 			if item.slice {
 				return n.errorf("cannot come after arg list '%s'", item.name)
 			}
 		}
-		//add to this command's arguments
+		// add to this command's arguments
 		n.args = append(n.args, i)
 	default:
 		return fmt.Errorf("invalid opts mode '%s'", mode)

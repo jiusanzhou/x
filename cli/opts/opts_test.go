@@ -13,16 +13,20 @@ func TestSimple(t *testing.T) {
 	type Config struct {
 		Foo string
 		Bar string
+		Age int
+		Old bool `opts:"short=o"`
 	}
 	c := &Config{}
 	//flag example parse
-	err := testNew(c).parse("/bin/prog", "--foo", "hello", "--bar", "world")
+	err := testNew(c).parse("--foo", "hello", "--bar", "world", "--age", "18", "-o")
 	if err != nil {
 		t.Fatal(err)
 	}
 	//check config is filled
-	// check(t, c.Foo, "hello")
-	// check(t, c.Bar, "world")
+	check(t, c.Foo, "hello")
+	check(t, c.Bar, "world")
+	check(t, c.Age, 18)
+	check(t, c.Old, true)
 }
 
 var spaces = regexp.MustCompile(`\ `)

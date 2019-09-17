@@ -39,8 +39,8 @@ func New(config interface{}) Opts {
 	return newNode(reflect.ValueOf(config))
 }
 
-//Setter is any type which can be set from a string.
-//This includes flag.Value.
+// Setter is any type which can be set from a string.
+// This includes flag.Value.
 type Setter interface {
 	Set(string) error
 }

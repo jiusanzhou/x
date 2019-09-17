@@ -7,26 +7,28 @@ import (
 )
 
 // node presents a command nodes
-// TODO:
+// TODO: add cmds here
 type node struct {
 	err error
-	//embed item since an node can also be an item
 	item
-	parent     *node
-	flagGroups []*itemGroup
 	args       []*item
+	flagGroups []*itemGroup
 	flagNames  map[string]bool
-	flagsets   []*flag.FlagSet
 	envNames   map[string]bool
-	cmds       map[string]*node
+	flagsets   []*flag.FlagSet
+
+	//pretend these are in the user struct :)
+	internalOpts struct {
+		Help       bool
+		Version    bool
+		ConfigPath string
+	}
 }
 
 func newNode(val reflect.Value) *node {
 	n := &node{
-		parent:    nil,
 		flagNames: map[string]bool{},
 		envNames:  map[string]bool{},
-		cmds:      map[string]*node{},
 	}
 	//all new node's MUST be an addressable struct
 	t := val.Type()
