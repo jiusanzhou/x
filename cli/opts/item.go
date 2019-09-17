@@ -201,6 +201,14 @@ func (i *item) Value() reflect.Value {
 	return i.val
 }
 
+func (i *item) Item() Value {
+	return i
+}
+
+func (i *item) Type() string {
+	return i.val.Type().Name()
+}
+
 //noopValue defines a flag value which does nothing
 var noopValue = noopValueType(0)
 

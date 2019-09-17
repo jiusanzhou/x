@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"go.zoe.im/x/cli/opts"
+
 	"github.com/spf13/cobra"
 )
 
@@ -60,9 +62,32 @@ func Example(ex string) Option {
 	}
 }
 
+// Config ...
+func Config(v interface{}) Option {
+	// set flag from opts
+	// new opts from opts
+	n := opts.New(v)
+	return func(c *Command) {
+		c.setflag = func(c *Command) {
+			f := c.Flags()
+			for _, o := range n.Opts() {
+				f.VarP(o.Item(), o.Name(), o.Short(), o.Help())
+			}
+		}
+	}
+}
+
 // SetFlags ...
 func SetFlags(setflag func(c *Command)) Option {
 	return func(c *Command) {
-		c.setflag = setflag
+		oldsetflag := c.setflag
+		if oldsetflag == nil {
+			c.setflag = setflag
+		} else {
+			c.setflag = func(c *Command) {
+				oldsetflag(c)
+				setflag(c)
+			}
+		}
 	}
 }
