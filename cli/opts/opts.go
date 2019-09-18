@@ -4,6 +4,14 @@ import (
 	"reflect"
 )
 
+// Value is the interface to the dynamic value stored in a flag.
+// (The default value is represented as a string.)
+type Value interface {
+	String() string
+	Set(string) error
+	Type() string
+}
+
 // Opt is a single option
 type Opt interface {
 	Name() string
@@ -11,6 +19,7 @@ type Opt interface {
 	Help() string
 	Default() reflect.Value
 	Value() reflect.Value
+	Item() Value
 }
 
 // Opts contains flags, args and commands
@@ -39,8 +48,8 @@ func New(config interface{}) Opts {
 	return newNode(reflect.ValueOf(config))
 }
 
-//Setter is any type which can be set from a string.
-//This includes flag.Value.
+// Setter is any type which can be set from a string.
+// This includes flag.Value.
 type Setter interface {
 	Set(string) error
 }

@@ -16,14 +16,14 @@ func (n *node) Opts() []Opt {
 }
 
 func (n *node) flagGroup(name string) *itemGroup {
-	//NOTE: the default group is the empty string
-	//get existing group
+	// NOTE: the default group is the empty string
+	// get existing group
 	for _, g := range n.flagGroups {
 		if g.name == name {
 			return g
 		}
 	}
-	//otherwise, create and append
+	// otherwise, create and append
 	g := &itemGroup{name: name}
 	n.flagGroups = append(n.flagGroups, g)
 	return g
