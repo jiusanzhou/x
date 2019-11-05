@@ -20,6 +20,9 @@ type Opt interface {
 	Default() reflect.Value
 	Value() reflect.Value
 	Item() Value
+	FromEnv() bool
+	EnvName() string
+	HasSet() bool
 }
 
 // Opts contains flags, args and commands
@@ -45,7 +48,8 @@ type ParsedOpts interface {
 
 // New create a Opts
 func New(config interface{}) Opts {
-	return newNode(reflect.ValueOf(config))
+	n := newNode(reflect.ValueOf(config))
+	return n
 }
 
 // Setter is any type which can be set from a string.

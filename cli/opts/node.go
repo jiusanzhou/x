@@ -17,6 +17,8 @@ type node struct {
 	envNames   map[string]bool
 	flagsets   []*flag.FlagSet
 
+	loaded bool
+
 	//pretend these are in the user struct :)
 	internalOpts struct {
 		Help       bool

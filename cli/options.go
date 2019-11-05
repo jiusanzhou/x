@@ -24,16 +24,6 @@ func Name(names ...string) Option {
 	}
 }
 
-// Run returns option to set the main run function
-func Run(fn func(cmd *Command, args ...string)) Option {
-	return func(c *Command) {
-		// try to create func(cmd *cobra.Command, args []string) directly
-		c.Command.Run = func(cmd *cobra.Command, args []string) {
-			fn(c, args...)
-		}
-	}
-}
-
 // Short returns option to set the short
 func Short(desc string) Option {
 	return func(c *Command) {
@@ -62,21 +52,47 @@ func Example(ex string) Option {
 	}
 }
 
+// TODO: for user
+// PersistentPreRun: children of this command will inherit and execute.
+func PersistentPreRun(fn func(cmd *Command, args ...string)) Option {
+	return func(c *Command) {
+		c.Command.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+			fn(c, args...)
+		}
+	}
+}
+
+// TODO: for user
+// PreRun: children of this command will not inherit.
+func PreRun(fn func(cmd *Command, args ...string)) Option {
+	return func(c *Command) {
+		c.Command.PreRun = func(cmd *cobra.Command, args []string) {
+			fn(c, args...)
+		}
+	}
+}
+
+// Run returns option to set the main run function
+func Run(fn func(cmd *Command, args ...string)) Option {
+	return func(c *Command) {
+		// try to create func(cmd *cobra.Command, args []string) directly
+		c.Command.Run = func(cmd *cobra.Command, args []string) {
+			fn(c, args...)
+		}
+	}
+}
+
+// GlobalConfig ...
+func GlobalConfig(v interface{}) Option {
+	return func(c *Command) {
+		c.globalOpts = opts.New(v)
+	}
+}
+
 // Config ...
 func Config(v interface{}) Option {
-	// set flag from opts
-	// new opts from opts
-	n := opts.New(v)
 	return func(c *Command) {
-		c.setflag = func(c *Command) {
-			f := c.Flags()
-			for _, o := range n.Opts() {
-				flag := f.VarPF(o.Item(), o.Name(), o.Short(), o.Help())
-				if o.Item().Type() == "bool" {
-					flag.NoOptDefVal = "true"
-				}
-			}
-		}
+		c.opts = opts.New(v)
 	}
 }
 

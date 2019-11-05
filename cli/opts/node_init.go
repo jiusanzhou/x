@@ -5,8 +5,10 @@ func (n *node) Parse() ParsedOpts {
 }
 
 func (n *node) Opts() []Opt {
-	if err := n.load(); err != nil {
-		return nil
+	if !n.loaded {
+		if err := n.load(); err != nil {
+			return nil
+		}
 	}
 	opts := []Opt{}
 	for _, f := range n.flags() {

@@ -175,6 +175,10 @@ func (i *item) Set(s string) error {
 	return nil
 }
 
+func (i *item) HasSet() bool {
+	return i.sets != 0
+}
+
 //IsBoolFlag implements the hidden interface
 //documented here https://golang.org/pkg/flag/#Value
 func (i *item) IsBoolFlag() bool {
@@ -207,6 +211,14 @@ func (i *item) Item() Value {
 
 func (i *item) Type() string {
 	return i.val.Type().Name()
+}
+
+func (i *item) FromEnv() bool {
+	return i.useEnv && i.envName != ""
+}
+
+func (i *item) EnvName() string {
+	return i.envName
 }
 
 //noopValue defines a flag value which does nothing

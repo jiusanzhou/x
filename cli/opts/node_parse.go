@@ -12,6 +12,7 @@ import (
 
 func (n *node) load() error {
 	//add this node and its fields (recurses if has sub-commands)
+	n.loaded = true
 	return n.addStructFields(defaultGroup, n.item.val)
 }
 

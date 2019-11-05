@@ -9,9 +9,7 @@ func New(opts ...Option) *Command {
 
 	// we must do it at init time.
 	// load set flag
-	if c.setflag != nil {
-		c.setflag(c)
-	}
+	c.initFlags()
 
 	return c
 }
