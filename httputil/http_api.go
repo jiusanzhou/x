@@ -1,6 +1,5 @@
 package httputil
 
-
 import (
 	"encoding/json"
 	"fmt"
@@ -16,7 +15,7 @@ var (
 	// StatusSuccess present this request success
 	StatusSuccess = "success"
 	// StatusFailed repsent this request failed
-	StatusFailed  = "failed"
+	StatusFailed = "failed"
 )
 
 // Response present all fields for api response
@@ -58,7 +57,7 @@ func (r *Response) Flush(fs ...Field) {
 
 	r.w.Header().Set("Content-Type", "application/json")
 	r.w.WriteHeader(httpStatusFromCode(r.Code))
-	
+
 	enc := json.NewEncoder(r.w)
 	// TODO: catch the error
 	enc.Encode(r)
@@ -119,7 +118,7 @@ func Error(err error) Field {
 // NewResponse ...
 func NewResponse(w http.ResponseWriter, fs ...Field) *Response {
 	r := &Response{
-		w:      w,
+		w: w,
 	}
 
 	for _, f := range fs {

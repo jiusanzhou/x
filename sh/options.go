@@ -13,7 +13,6 @@ type Option func(*interp.Runner) error
 // process's environment is used.
 var Env = interp.Env
 
-
 // Dir sets the interpreter's working directory. If empty, the process's current
 // directory is used.
 var Dir = interp.Dir
@@ -25,7 +24,6 @@ var Dir = interp.Dir
 // This is similar to what the interpreter's "set" builtin does.
 var Params = interp.Params
 
-
 // WithExecModule sets up a runner with a chain of ExecModule middlewares. The
 // chain is set up starting at the end, so that the first middleware in the list
 // will be the first one to execute as part of the interpreter.
@@ -33,7 +31,6 @@ var Params = interp.Params
 // The last or innermost module is always DefaultExec. You can make it
 // unreachable by adding a middleware that never calls its next module.
 var WithExecModule = interp.WithExecModules
-
 
 // WithOpenModule sets up a runner with a chain of OpenModule middlewares. The
 // chain is set up starting at the end, so that the first middleware in the list
@@ -43,12 +40,10 @@ var WithExecModule = interp.WithExecModules
 // unreachable by adding a middleware that never calls its next module.
 var WithOpenModule = interp.WithOpenModules
 
-
 // StdIO configures an interpreter's standard input, standard output, and
 // standard error. If out or err are nil, they default to a writer that discards
 // the output.
 var StdIO = interp.StdIO
-
 
 // Timeout configures holds how much time the interpreter will wait for a
 // program to stop after being sent an interrupt signal, after

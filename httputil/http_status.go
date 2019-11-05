@@ -176,7 +176,7 @@ var httpStatusFromCode = defaultHTTPStatusFromCode
 // HTTPStatusFromCode set http status from code function
 func HTTPStatusFromCode(fn func(code StatusCode) int) {
 	var oldfn = httpStatusFromCode
-	httpStatusFromCode = func (code StatusCode) int {
+	httpStatusFromCode = func(code StatusCode) int {
 		var v = oldfn(code)
 		if v != http.StatusInternalServerError {
 			return v

@@ -26,12 +26,12 @@ type Runner struct {
 	running bool
 }
 
-func newRunner() (*interp.Runner,  error) {
+func newRunner() (*interp.Runner, error) {
 	return interp.New(interp.StdIO(os.Stdin, os.Stdout, os.Stderr))
 }
 
 // New create a runner
-func New(opts ...Option) (*Runner,  error) {
+func New(opts ...Option) (*Runner, error) {
 
 	var r = &Runner{
 		opts: opts,
@@ -71,7 +71,7 @@ func (r *Runner) Run(ctx context.Context, s string, opts ...Option) error {
 		rdr io.Reader
 		err error
 	)
-	
+
 	var rn = r
 
 	// must copy for overwrite options
