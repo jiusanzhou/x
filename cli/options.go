@@ -71,7 +71,10 @@ func Config(v interface{}) Option {
 		c.setflag = func(c *Command) {
 			f := c.Flags()
 			for _, o := range n.Opts() {
-				f.VarP(o.Item(), o.Name(), o.Short(), o.Help())
+				flag := f.VarPF(o.Item(), o.Name(), o.Short(), o.Help())
+				if o.Item().Type() == "bool" {
+					flag.NoOptDefVal = "true"
+				}
 			}
 		}
 	}
