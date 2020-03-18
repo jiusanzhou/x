@@ -48,7 +48,7 @@ var (
 	// companion .gitattributes file containing 'export-subst' in this same
 	// directory.  See also https://git-scm.com/docs/gitattributes
 	GitVersion   = "v0.0.0"
-	GitCommit    = ""                     // sha1 from git, output of $(git rev-parse HEAD)
-	GitTreeState = ""                     // state of git tree, either "clean" or "dirty"
-	BuildDate    = "1970-01-01T00:00:00Z" // build date in ISO8601 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+	GitCommit    = "0000000000000000000000000000000000000000" // sha1 from git, output of $(git rev-parse HEAD)
+	GitTreeState = ""                                         // state of git tree, either "clean" or "dirty"
+	BuildDate    = "1970-01-01T00:00:00Z"                     // build date in ISO8601 format, output of $(date -u +'%Y-%m-%dT%H:%M:%SZ')
 )
