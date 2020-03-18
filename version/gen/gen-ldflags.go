@@ -31,9 +31,7 @@ var (
 	gitCommit  string
 	gitState   string
 
-	defaultArgs = []string{
-		"--work-tree", ".",
-	}
+	defaultArgs = []string{}
 )
 
 func genLDFlags() string {
@@ -106,7 +104,7 @@ func gitRun(args ...string) string {
 func main() {
 	if len(os.Args) > 1 {
 		// set root path
-		defaultArgs[1] = os.Args[1]
+		defaultArgs = append(defaultArgs, "--work-tree", os.Args[1])
 	}
 
 	gitCommit = commitID()
