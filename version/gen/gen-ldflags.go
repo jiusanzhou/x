@@ -35,6 +35,11 @@ var (
 )
 
 func genLDFlags() string {
+
+	if gitState == "dirty" {
+		gitVersion += "-dirty"
+	}
+
 	ldflagsStr := "" // "-s -w"
 	ldflagsStr += " -X go.zoe.im/x/version.GitVersion=" + gitVersion
 	ldflagsStr += " -X go.zoe.im/x/version.GitCommit=" + gitCommit
