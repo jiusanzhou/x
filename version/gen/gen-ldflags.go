@@ -93,7 +93,11 @@ func treeState() string {
 
 // commitID returns the abbreviated commit-id hash of the last commit.
 func commitID() string {
-	return gitRun("rev-parse", "HEAD^{commit}")
+	id := gitRun("rev-parse", "HEAD^{commit}")
+	if id == "" {
+		id = "0000000000000000000000000000000000000000"
+	}
+	return id
 }
 
 func gitRun(args ...string) string {
