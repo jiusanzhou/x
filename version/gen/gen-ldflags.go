@@ -38,10 +38,10 @@ var (
 
 func genLDFlags() string {
 	ldflagsStr := "" // "-s -w"
-	ldflagsStr += " -X go.zoe.im/x/version.gitVersion=" + gitVersion
-	ldflagsStr += " -X go.zoe.im/x/version.gitCommit=" + gitCommit
-	ldflagsStr += " -X go.zoe.im/x/version.gitTreeState=" + gitState
-	ldflagsStr += " -X go.zoe.im/x/version.buildDate=" + time.Now().UTC().Format(time.RFC3339)
+	ldflagsStr += " -X go.zoe.im/x/version.GitVersion=" + gitVersion
+	ldflagsStr += " -X go.zoe.im/x/version.GitCommit=" + gitCommit
+	ldflagsStr += " -X go.zoe.im/x/version.GitTreeState=" + gitState
+	ldflagsStr += " -X go.zoe.im/x/version.BuildDate=" + time.Now().UTC().Format(time.RFC3339)
 	return ldflagsStr
 }
 

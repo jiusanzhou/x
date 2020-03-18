@@ -16,7 +16,11 @@
 
 package version
 
-import "go.zoe.im/x/cli"
+import (
+	"fmt"
+
+	"go.zoe.im/x/cli"
+)
 
 var (
 	helpTempl = `Version: %s
@@ -32,7 +36,8 @@ Platform: %s
 // NewCommand return a new command for version
 func NewCommand(opts ...cli.Option) *cli.Command {
 	var c = &struct{ Short bool }{}
-	return cli.New(
+
+	nopts := append([]cli.Option{
 		cli.Name("version"),
 		cli.Short("Print the application version information"),
 		cli.Config(c),
@@ -50,17 +55,18 @@ func NewCommand(opts ...cli.Option) *cli.Command {
 				i.BuildDate, i.GitCommit, i.GitTreeState,
 				i.GoVersion, i.Compiler, i.Platform,
 			)
-		})
-		...opts,
-	)
+		}),
+	}, opts...)
+
+	return cli.New(nopts...)
 }
 
 // NewOption return a option to set version
-func NewOption(needCmd bool, opts ...Option) Option {
-	return func(c *Command) {
-		c.Command.Version = gitVersion
+func NewOption(needCmd bool, opts ...cli.Option) cli.Option {
+	return func(c *cli.Command) {
+		c.Command.Version = Get().GitVersion
 		// if needCmd is true, we need to install a version command
-		if isCmd {
+		if needCmd {
 			c.Register(NewCommand(opts...))
 		}
 	}

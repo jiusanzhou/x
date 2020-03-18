@@ -17,6 +17,9 @@
 package version
 
 import (
+	"fmt"
+	"runtime"
+
 	"github.com/Masterminds/semver"
 )
 
@@ -25,17 +28,17 @@ var versionInfo *Info
 func init() {
 
 	// TODO: SemVer generate from GitVersion
-	ver, err := semver.NewVersion(gitVersion)
+	ver, err := semver.NewVersion(GitVersion)
 	if err != nil {
 		ver = &semver.Version{} // zero version
 	}
 
 	versionInfo = &Info{
-		Version: ver,
-		GitVersion:   gitVersion,
-		GitCommit:    gitCommit,
-		GitTreeState: gitTreeState,
-		BuildDate:    buildDate,
+		Version:      ver,
+		GitVersion:   GitVersion,
+		GitCommit:    GitCommit,
+		GitTreeState: GitTreeState,
+		BuildDate:    BuildDate,
 		GoVersion:    runtime.Version(),
 		Compiler:     runtime.Compiler,
 		Platform:     fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
