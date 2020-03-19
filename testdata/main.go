@@ -6,6 +6,7 @@ import (
 
 	"go.zoe.im/x/cli"
 	"go.zoe.im/x/cli/config"
+	"go.zoe.im/x/version"
 )
 
 type globallConfig struct {
@@ -27,6 +28,7 @@ func main() {
 	}
 	cmd := cli.New(
 		cli.Name("test"),
+		version.NewOption(true),
 		cli.GlobalConfig(&cfg),
 		cli.Run(func(c *cli.Command, args ...string) {
 			c.Help()
