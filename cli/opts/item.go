@@ -129,7 +129,8 @@ func (i *item) String() string {
 func (i *item) Set(s string) error {
 	//can only set singles once
 	if i.sets != 0 && !i.slice {
-		return errors.New("already set")
+		// NOTE: we need to load config first and set flag again!
+		// return errors.New("already set")
 	}
 	//set has two modes, slice and inplace.
 	// when slice, create a new zero value, scan into it, append to slice
