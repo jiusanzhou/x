@@ -8,11 +8,27 @@ type Config struct {
 
 	// store the latest error state
 	err error
+
+	typ  string // encoder type
+	data []byte // raw source data
+	obj  map[string]interface{}
 }
 
 // Options return the options
 func (c *Config) Options() *Options {
 	return c.opts
+}
+
+// CopyValue copy the raw data of config to object
+func (c *Config) CopyValue(v interface{}) error {
+	// check if v is a pointer type
+	return encoderFactory.Decode(c.typ, c.data, v)
+}
+
+// Get take a value out from
+func (c *Config) Get(key string) (interface{}, bool) {
+	v, ok := c.obj[key]
+	return v, ok
 }
 
 // load load data from provider
@@ -37,11 +53,18 @@ func (c *Config) load() error {
 				continue
 			}
 
+			c.obj = make(map[string]interface{})
+			encoderFactory.Decode(typ, data, &c.obj)
+
 			// decode data to value
 			c.err = encoderFactory.Decode(typ, data, c.v)
 			if c.err != nil {
 				continue
 			}
+
+			// store the type and the data
+			c.typ = typ
+			c.data = data
 
 			// we need to end the process
 			parsed = true

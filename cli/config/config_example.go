@@ -32,6 +32,9 @@ func newExample() {
 		// name: test, ci: ..., cd: ...
 		config.WithChild("ci", &c1).WithChild("cd", &c2)
 	)
+
+	// params for new config from flags
+	cli.Config(&c)
 	*/
 
 	fmt.Println("parse configuraton =>", c)

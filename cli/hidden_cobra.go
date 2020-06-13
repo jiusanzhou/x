@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
+	"go.zoe.im/x/cli/config"
 	"go.zoe.im/x/cli/opts"
 )
 
@@ -13,8 +14,18 @@ type Command struct {
 	*cobra.Command
 	setflag func(c *Command)
 	// store opts
-	globalOpts opts.Opts
-	opts       opts.Opts
+	globalOpts []opts.Opts
+	opts       []opts.Opts
+
+	// config value, we only support one config
+	configv   interface{}
+	configobj *config.Config
+
+	// root command
+	root *Command
+
+	// parent command
+	parent *Command
 }
 
 func (c *Command) initFlags() {
@@ -48,8 +59,14 @@ func (c *Command) initFlags() {
 
 // New returns a wraper of cobra
 func newFromCobra() *Command {
-	return &Command{
+	c := &Command{
 		// Init the cobar command
 		Command: &cobra.Command{},
 	}
+
+	// set parent and root to self, or nil
+	c.parent = c
+	c.root = c
+
+	return c
 }

@@ -1,5 +1,8 @@
 {
-  "male": true,
   "name": "Zoe",
-  "sleep": 2000000
+  "male": true,
+  "stop": {
+    "dreams": ["MONEY", "EPIC"],
+    "time": 5000000000
+  }
 }

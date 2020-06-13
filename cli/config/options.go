@@ -13,6 +13,7 @@ type Options struct {
 	typs     []string
 
 	// provider multi provider
+	isProvSet bool
 	providers []Provider
 
 	// children
@@ -44,7 +45,12 @@ func WithType(typ ...string) Option {
 // WithProvider set provider
 func WithProvider(provides ...Provider) Option {
 	return func(c *Options) {
-		c.providers = append(c.providers, provides...)
+		if c.isProvSet {
+			c.providers = append(c.providers, provides...)
+		} else {
+			c.providers = provides
+			c.isProvSet = true
+		}
 	}
 }
 
@@ -68,7 +74,7 @@ func NewOptions(opts ...Option) *Options {
 	o := &Options{
 		// names:     []string{"config"}, // name
 		name:      "config",
-		typs:      []string{"json"}, // encoder
+		typs:      []string{"yaml"}, // encoder
 		providers: []Provider{fs},   // provider
 	}
 

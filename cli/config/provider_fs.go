@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"io/ioutil"
+	"path/filepath"
 )
 
 type fsProvider struct {
@@ -19,7 +20,7 @@ func (fs *fsProvider) Read(name string, typs ...string) ([]byte, error) {
 	}
 
 	// read file with name from root directory
-	return ioutil.ReadFile(name)
+	return ioutil.ReadFile(filepath.Join(fs.root, name))
 }
 
 // Write implement write content to provider
@@ -30,11 +31,11 @@ func (fs *fsProvider) Write(name string, data []byte, typs ...string) error {
 		// suffix with extension
 		name = name + "." + typs[0]
 	}
-	return ioutil.WriteFile(name, data, 0644)
+	return ioutil.WriteFile(filepath.Join(fs.root, name), data, 0644)
 }
 
 func (fs *fsProvider) String() string {
-	return "fs"
+	return "fs" + "://" + fs.root
 }
 
 // NewFSProvider return a fs provider

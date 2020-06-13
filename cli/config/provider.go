@@ -1,6 +1,9 @@
 package config
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 var (
 	providerFactory = NewProviderFactory()
@@ -75,6 +78,20 @@ func NewProvider(name string, config interface{}) (Provider, error) {
 		return nil, errors.New("provider creator not exits")
 	}
 	return creator(config)
+}
+
+// NewProviderFromURI create a provider with uri string
+// at most time, format schema://config
+func NewProviderFromURI(url string) (Provider, error) {
+	sep := "://"
+
+	s := strings.Index(url, sep)
+	if s < 0 {
+		return NewProvider("fs", url)
+	}
+
+	// split with `://`
+	return NewProvider(url[:s], url[s+len(sep):])
 }
 
 // RegisterProviderCreator register a provider creator

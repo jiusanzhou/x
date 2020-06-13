@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"os"
+
+	"go.zoe.im/x/cli/config"
 	"go.zoe.im/x/cli/opts"
 
 	"github.com/spf13/cobra"
@@ -52,22 +55,38 @@ func Example(ex string) Option {
 	}
 }
 
-// TODO: for user
-// PersistentPreRun: children of this command will inherit and execute.
+// PersistentPreRun children of this command will inherit and execute.
 func PersistentPreRun(fn func(cmd *Command, args ...string)) Option {
 	return func(c *Command) {
-		c.Command.PersistentPreRun = func(cmd *cobra.Command, args []string) {
-			fn(c, args...)
+		oldfn := c.Command.PersistentPreRun
+		if oldfn != nil {
+			c.Command.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+				// oldfn(c, args...)
+				oldfn(cmd, args)
+				fn(c, args...)
+			}
+		} else {
+			c.Command.PersistentPreRun = func(cmd *cobra.Command, args []string) {
+				fn(c, args...)
+			}
 		}
+
 	}
 }
 
-// TODO: for user
-// PreRun: children of this command will not inherit.
+// PreRun children of this command will not inherit.
 func PreRun(fn func(cmd *Command, args ...string)) Option {
 	return func(c *Command) {
-		c.Command.PreRun = func(cmd *cobra.Command, args []string) {
-			fn(c, args...)
+		oldfn := c.Command.PreRun
+		if oldfn != nil {
+			c.Command.PreRun = func(cmd *cobra.Command, args []string) {
+				oldfn(cmd, args)
+				fn(c, args...)
+			}
+		} else {
+			c.Command.PreRun = func(cmd *cobra.Command, args []string) {
+				fn(c, args...)
+			}
 		}
 	}
 }
@@ -84,15 +103,47 @@ func Run(fn func(cmd *Command, args ...string)) Option {
 
 // GlobalConfig ...
 func GlobalConfig(v interface{}) Option {
+	// create a new config loader, and load content
+	// - add a config file flag to flagset, create flags with config
+	// - create a config instance
+
+	// with out default value at here
+	cfopts := newConfigOptions()
+
 	return func(c *Command) {
-		c.globalOpts = opts.New(v)
+		// create a new flags set from config struct
+		// generate flags from config
+		// load config from source before flags parsed(get flags)
+		c.globalOpts = append(c.globalOpts, opts.New(&cfopts), opts.New(v))
+
+		// TODO: do once
+
+		// registe PersistentPreRun, but when to get flags
+		PersistentPreRun(func(cmd *Command, _ ...string) {
+			// create config from flags
+			var err error
+			c.configobj, err = config.New(v, cfopts.build()...)
+			if err != nil {
+				return
+			}
+
+			// can reset with flag parse
+			// parsed flags again to set to v
+			cmd.ParseFlags(os.Args)
+		})(c)
 	}
 }
 
-// Config ...
+// Config loads configuration from provider
 func Config(v interface{}) Option {
 	return func(c *Command) {
-		c.opts = opts.New(v)
+		c.opts = append(c.opts, opts.New(v))
+		// we won't to register opts
+		// but we can load from global config
+		// NOTE: NOTE Global Config 和 Conifg 会有Flag冲突，导致 Global 取不到Flag值
+		// TODO: how to load config with command name
+
+		c.configv = v
 	}
 }
 
