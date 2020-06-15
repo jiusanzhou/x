@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"log"
 	"os"
 
 	"go.zoe.im/x/cli/config"
@@ -102,7 +103,7 @@ func Run(fn func(cmd *Command, args ...string)) Option {
 }
 
 // GlobalConfig ...
-func GlobalConfig(v interface{}) Option {
+func GlobalConfig(v interface{}, cfos ...ConfigOption) Option {
 	// create a new config loader, and load content
 	// - add a config file flag to flagset, create flags with config
 	// - create a config instance
@@ -114,7 +115,18 @@ func GlobalConfig(v interface{}) Option {
 		// create a new flags set from config struct
 		// generate flags from config
 		// load config from source before flags parsed(get flags)
-		c.globalOpts = append(c.globalOpts, opts.New(&cfopts), opts.New(v))
+		c.globalOpts = append(c.globalOpts, opts.New(v))
+
+		// only do while we has defined a config command
+		if len(cfos) == 0 {
+			return
+		}
+
+		for _, o := range cfos {
+			o(cfopts)
+		}
+
+		c.globalOpts = append(c.globalOpts, opts.New(cfopts))
 
 		// TODO: do once
 
@@ -124,6 +136,7 @@ func GlobalConfig(v interface{}) Option {
 			var err error
 			c.configobj, err = config.New(v, cfopts.build()...)
 			if err != nil {
+				log.Println("[WARN] load config error:", err)
 				return
 			}
 
@@ -131,6 +144,7 @@ func GlobalConfig(v interface{}) Option {
 			// parsed flags again to set to v
 			cmd.ParseFlags(os.Args)
 		})(c)
+
 	}
 }
 
@@ -140,7 +154,6 @@ func Config(v interface{}) Option {
 		c.opts = append(c.opts, opts.New(v))
 		// we won't to register opts
 		// but we can load from global config
-		// NOTE: NOTE Global Config 和 Conifg 会有Flag冲突，导致 Global 取不到Flag值
 		// TODO: how to load config with command name
 
 		c.configv = v

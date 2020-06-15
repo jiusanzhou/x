@@ -15,11 +15,20 @@ func New(opts ...Option) *Command {
 	// if c.config is not nil we can load value
 	// from parent or root
 	PreRun(func(cmd *Command, args ...string) {
-		if !cmd.IsRoot() && cmd.root.configobj != nil {
+		// if we are not a root cmd, and set the config and with root config
+		// we try to load config
+		// but what about the ...
+		if !cmd.IsRoot() && cmd.configv != nil && cmd.root.configobj != nil {
 			v, ok := cmd.root.configobj.Get(c.Name())
 			if ok {
 				// FIXME:
-				b, _ := json.Marshal(v)
+				b, err := json.Marshal(v)
+
+				// ignore error
+				if err != nil {
+					return
+				}
+
 				json.Unmarshal(b, cmd.configv)
 				// re parse flag
 				cmd.ParseFlags(os.Args)

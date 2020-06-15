@@ -23,21 +23,27 @@ import (
 // configConfig contains options for config parse
 type configOptions struct {
 	// config file name
-	Config         string `opts:"env,short=c,help=configuration's name"`
-	ConfigType     string `opts:"env,help=configuration encoding format"`
-	ConfigProvider string `opts:"env,help=configuration provider"`
-	// ConfigTypes     []string `opts:"env,help=configuration encoding format"`
-	// ConfigProviders []string `opts:"env,help=configuration provider"`
+	Config      string   `opts:"env,short=c,help=configuration's name; without extension name(toml|yaml|json)"`
+	ConfigTypes []string `opts:"-"`
 }
 
-func newConfigOptions() configOptions {
-	return configOptions{
-		Config:         "config",
-		ConfigType:     "yaml",
-		ConfigProvider: "",
+// ConfigOption defined config option for cli
+type ConfigOption func(co *configOptions)
+
+// WithConfigName set config name
+func WithConfigName(name string) ConfigOption {
+	return func(co *configOptions) {
+		co.Config = name
+	}
+}
+
+// WithConfigType set config
+
+func newConfigOptions() *configOptions {
+	return &configOptions{
+		Config: "config",
 		// TODO: opts can't supported slice with default values
-		// ConfigTypes: []string{"yaml", "toml"},
-		// ConfigProviders: []string{"./"},
+		ConfigTypes: []string{"toml", "yaml", "json"},
 	}
 }
 
@@ -49,16 +55,11 @@ func (c *configOptions) build() []config.Option {
 		opts = append(opts, config.WithName(c.Config))
 	}
 
-	if len(c.ConfigType) > 0 {
-		opts = append(opts, config.WithType(c.ConfigType))
+	if len(c.ConfigTypes) > 0 {
+		opts = append(opts, config.WithType(c.ConfigTypes...))
 	}
 
-	if len(c.ConfigProvider) > 0 {
-		p, err := config.NewProviderFromURI(c.ConfigProvider)
-		if err == nil {
-			opts = append(opts, config.WithProvider(p))
-		}
-	}
+	// with default provider is current path
 
 	return opts
 }

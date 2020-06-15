@@ -61,7 +61,7 @@ func cliRun() {
 	cmd := cli.New(
 		cli.Name("test"),
 		version.NewOption(true),
-		cli.GlobalConfig(&cfg),
+		cli.GlobalConfig(&cfg, cli.WithConfigName("config")),
 		cli.Run(func(c *cli.Command, args ...string) {
 			c.Help()
 		}),

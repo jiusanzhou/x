@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 )
 
 type fsProvider struct {
@@ -13,8 +14,8 @@ type fsProvider struct {
 // Read implement read content from provider
 func (fs *fsProvider) Read(name string, typs ...string) ([]byte, error) {
 	// check type we need to read all type?
-	// no need
-	if len(typs) > 0 {
+	// no need, without the extension make sure
+	if len(typs) > 0 && strings.HasSuffix(name, "."+typs[0]) {
 		// suffix with extension
 		name = name + "." + typs[0]
 	}
