@@ -15,7 +15,7 @@ type fsProvider struct {
 func (fs *fsProvider) Read(name string, typs ...string) ([]byte, error) {
 	// check type we need to read all type?
 	// no need, without the extension make sure
-	if len(typs) > 0 && strings.HasSuffix(name, "."+typs[0]) {
+	if len(typs) > 0 && !strings.HasSuffix(name, "."+typs[0]) {
 		// suffix with extension
 		name = name + "." + typs[0]
 	}
