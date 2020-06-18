@@ -1,5 +1,7 @@
 package opts
 
+import "log"
+
 func (n *node) Parse() ParsedOpts {
 	return nil
 }
@@ -7,6 +9,7 @@ func (n *node) Parse() ParsedOpts {
 func (n *node) Opts() []Opt {
 	if !n.loaded {
 		if err := n.load(); err != nil {
+			log.Println("[ERROR] parse opts error:", err)
 			return nil
 		}
 	}

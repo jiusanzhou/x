@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -61,7 +62,13 @@ func cliRun() {
 	cmd := cli.New(
 		cli.Name("test"),
 		version.NewOption(true),
-		cli.GlobalConfig(&cfg, cli.WithConfigName("config")),
+		cli.GlobalConfig(
+			&cfg,
+			cli.WithConfigName(),
+			cli.WithConfigChanged(func(o, n interface{}) {
+				log.Println("config changed:", n)
+			}),
+		),
 		cli.Run(func(c *cli.Command, args ...string) {
 			c.Help()
 		}),

@@ -1,8 +1,11 @@
 package config
 
 import (
+	"crypto/md5"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 )
 
 var (
@@ -29,17 +32,11 @@ type Provider interface {
 	// TODO: patch special value with key selector
 	// Patch(name string, key string, value interface{}) error
 
-	// TODO: watch can handle a source changed
-	// Watch(name string) (Watcher, error)
+	// watch the config whilte change
+	Watch(name string, typs ...string) (Watcher, error)
 
 	// String returns name of provider
 	String() string
-}
-
-// Watcher watches a source for changes
-type Watcher interface {
-	Next() ([]byte, error)
-	Stop() error
 }
 
 // ProviderCreator function to create provider
@@ -101,4 +98,20 @@ func RegisterProviderCreator(name string, creator ProviderCreator) error {
 	}
 	providerCreators[name] = creator
 	return nil
+}
+
+// ChangeSet represents a set of changes from a source
+type ChangeSet struct {
+	Data      []byte
+	Checksum  string
+	Format    string
+	Source    string
+	Timestamp time.Time
+}
+
+// Sum returns the md5 checksum of the ChangeSet data
+func (c *ChangeSet) Sum() string {
+	h := md5.New()
+	h.Write(c.Data)
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

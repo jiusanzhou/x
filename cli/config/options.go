@@ -2,10 +2,10 @@ package config
 
 // Options present current params
 type Options struct {
-	// file's names we are trhing to load, only load one exits
-	// TODO: comboine fileds with names order
+	// file's names we are trhing to load, merge data with the order
 	names []string
 
+	// Deprecated
 	name string
 
 	// file types we are supported
@@ -15,6 +15,9 @@ type Options struct {
 	// provider multi provider
 	isProvSet bool
 	providers []Provider
+
+	// change lisner
+	onChanged func(o, n interface{})
 
 	// children
 	children []*Config
@@ -27,6 +30,13 @@ type Option func(c *Options)
 func WithName(name string) Option {
 	return func(c *Options) {
 		c.name = name
+	}
+}
+
+// WithNames set names
+func WithNames(names ...string) Option {
+	return func(c *Options) {
+		c.names = append(c.names, names...)
 	}
 }
 
@@ -50,6 +60,21 @@ func WithProvider(provides ...Provider) Option {
 		} else {
 			c.providers = provides
 			c.isProvSet = true
+		}
+	}
+}
+
+// WithConfigChanged set on config chaned
+func WithConfigChanged(f func(o, n interface{})) Option {
+	return func(co *Options) {
+		oldfn := co.onChanged
+		if oldfn != nil {
+			co.onChanged = func(o, n interface{}) {
+				oldfn(o, n)
+				f(o, n)
+			}
+		} else {
+			co.onChanged = f
 		}
 	}
 }
