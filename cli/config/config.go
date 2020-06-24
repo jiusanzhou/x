@@ -127,6 +127,10 @@ func (c *Config) load() error {
 // mount loads  a data from sources to v
 func (c *Config) mount() error {
 	var err error
+
+	// make sure c.obj is empty
+	c.obj = map[string]interface{}{}
+
 	// merge obejct and data?
 	for _, n := range c.names {
 		if s, ok := c.sources[n]; ok {
@@ -137,6 +141,8 @@ func (c *Config) mount() error {
 	c.data, err = json.Marshal(c.obj)
 	c.errs.Add(err)
 	c.errs.Add(json.Unmarshal(c.data, &c.v))
+
+	// NOTE: re parse flags from os.Args in onChanged
 	return c.errs
 }
 
