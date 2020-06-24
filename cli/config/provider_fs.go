@@ -47,7 +47,7 @@ func (fs *fsProvider) Watch(name string, typs ...string) (Watcher, error) {
 	originalName := name
 	// check type we need to read all type?
 	// no need
-	if len(typs) > 0 {
+	if len(typs) > 0 && !strings.HasSuffix(name, "."+typs[0]) {
 		// suffix with extension
 		name = name + "." + typs[0]
 	}
