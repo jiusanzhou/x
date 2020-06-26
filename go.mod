@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/BurntSushi/toml v0.3.1
-	github.com/Masterminds/semver v1.5.0
+	github.com/Masterminds/semver/v3/v3 v3.1.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/ghodss/yaml v1.0.0
 	github.com/hashicorp/hcl v1.0.0
