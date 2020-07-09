@@ -69,3 +69,11 @@ func (c *Command) Run(opts ...Option) error {
 func (c *Command) IsRoot() bool {
 	return c.root == c
 }
+
+// Option merge options after new
+func (c *Command) Option(opts ...Option) *Command {
+	for _, o := range opts {
+		o(c)
+	}
+	return c
+}
