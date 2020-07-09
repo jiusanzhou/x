@@ -25,7 +25,8 @@ type configOptions struct {
 	// config file name
 	Config      []string `opts:"env,short=c,help=configuration's name(config); without extension name(toml|yaml|json)"`
 	ConfigTypes []string `opts:"-"`
-	onChanged   func(o, n interface{})
+
+	onChanged func(o, n interface{})
 }
 
 // ConfigOption defined config option for cli
@@ -59,6 +60,7 @@ func WithConfigChanged(f func(o, n interface{})) ConfigOption {
 func newConfigOptions() *configOptions {
 	return &configOptions{
 		Config: []string{},
+
 		// TODO: opts can't supported slice with default values
 		ConfigTypes: []string{"toml", "yaml", "json"},
 	}
