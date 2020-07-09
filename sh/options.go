@@ -7,7 +7,7 @@ import (
 )
 
 // Option configuration
-type Option func(*interp.Runner) error
+type Option = func(*interp.Runner) error
 
 // Env sets the interpreter's environment. If nil, a copy of the current
 // process's environment is used.
