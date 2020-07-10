@@ -28,7 +28,8 @@ type Command struct {
 	parent *Command
 }
 
-func (c *Command) initFlags() {
+// InitFlags init flags from config
+func (c *Command) InitFlags() {
 
 	// loads flags from config flag
 	if c.globalOpts != nil {

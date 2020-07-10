@@ -1,10 +1,5 @@
 package cli
 
-import (
-	"encoding/json"
-	"os"
-)
-
 // New returns a command with options
 func New(opts ...Option) *Command {
 	c := newFromCobra()
@@ -14,31 +9,10 @@ func New(opts ...Option) *Command {
 
 	// if c.config is not nil we can load value
 	// from parent or root
-	PreRun(func(cmd *Command, args ...string) {
-		// if we are not a root cmd, and set the config and with root config
-		// we try to load config
-		// but what about the ...
-		if !cmd.IsRoot() && cmd.configv != nil && cmd.root.configobj != nil {
-			v, ok := cmd.root.configobj.Get(c.Name())
-			if ok {
-				// FIXME:
-				b, err := json.Marshal(v)
-
-				// ignore error
-				if err != nil {
-					return
-				}
-
-				json.Unmarshal(b, cmd.configv)
-				// re parse flag
-				cmd.ParseFlags(os.Args)
-			}
-		}
-	})(c)
-
+	PreParseConfig()(c)
 	// we must do it at init time.
 	// load set flag
-	c.initFlags()
+	c.InitFlags()
 
 	return c
 }
@@ -75,5 +49,15 @@ func (c *Command) Option(opts ...Option) *Command {
 	for _, o := range opts {
 		o(c)
 	}
+
+	// while we have add config by Option we need to re parse flags and config
+
+	// if c.config is not nil we can load value
+	// from parent or root
+	PreParseConfig()(c)
+	// we must do it at init time.
+	// load set flag
+	c.InitFlags()
+
 	return c
 }

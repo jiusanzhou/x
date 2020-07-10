@@ -17,6 +17,9 @@
 package cli
 
 import (
+	"encoding/json"
+	"os"
+
 	"go.zoe.im/x/cli/config"
 )
 
@@ -86,4 +89,29 @@ func (c *configOptions) build() []config.Option {
 	}
 
 	return opts
+}
+
+// PreParseConfig is a option parse config
+func PreParseConfig() Option {
+	return PreRun(func(cmd *Command, args ...string) {
+		// if we are not a root cmd, and set the config and with root config
+		// we try to load config
+		// but what about the ...
+		if !cmd.IsRoot() && cmd.configv != nil && cmd.root.configobj != nil {
+			v, ok := cmd.root.configobj.Get(cmd.Name())
+			if ok {
+				// FIXME:
+				b, err := json.Marshal(v)
+
+				// ignore error
+				if err != nil {
+					return
+				}
+
+				json.Unmarshal(b, cmd.configv)
+				// re parse flag
+				cmd.ParseFlags(os.Args)
+			}
+		}
+	})
 }

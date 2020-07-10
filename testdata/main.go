@@ -62,20 +62,23 @@ func cliRun() {
 	cmd := cli.New(
 		cli.Name("test"),
 		version.NewOption(true),
-		cli.GlobalConfig(
-			&cfg,
-			cli.WithConfigName(),
-			cli.WithConfigChanged(func(o, n interface{}) {
-				log.Println("config changed:", n)
-			}),
-		),
 		cli.Run(func(c *cli.Command, args ...string) {
 			c.Help()
 		}),
 	)
+
+	cmd.Option(cli.GlobalConfig(
+		&cfg,
+		cli.WithConfigName(),
+		cli.WithConfigChanged(func(o, n interface{}) {
+			log.Println("config changed:", n)
+		}),
+	))
+
 	sleepCfg := &sleepConfig{
 		// Dreams: []string{"a", "v"},
 	}
+
 	cmd.Register(
 		cli.New(
 			cli.Name("stop"),
