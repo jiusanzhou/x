@@ -195,7 +195,16 @@ func (i *item) Short() string {
 }
 
 func (i *item) Help() string {
-	return i.help
+	// add env key to help
+	s := i.help
+
+	if i.FromEnv() {
+		if s != "" {
+			s += ", "
+		}
+		s += fmt.Sprintf("$%s", i.envName) // do we need to display value??? os.Getenv(i.envName)
+	}
+	return s
 }
 
 func (i *item) Default() reflect.Value {
