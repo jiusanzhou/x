@@ -53,7 +53,7 @@ func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err erro
 	dst = dstIn
 
 	overwrite := false
-	overwriteWithEmptySrc := false
+	overwriteWithEmptySrc := true
 	overwriteSliceWithEmptySrc := false
 	typeCheck := true
 	appendSlice := true
