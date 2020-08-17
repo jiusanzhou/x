@@ -27,9 +27,11 @@ import (
 type configOptions struct {
 	// config file name
 	Config      []string `opts:"env,short=c,help=configuration's name(config); without extension name(toml|yaml|json)"`
-	ConfigTypes []string `opts:"-"`
+	ConfigTypes []string
 
 	onChanged func(o, n interface{})
+
+	// TODO: use parent directory for config???
 }
 
 // ConfigOption defined config option for cli
