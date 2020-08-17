@@ -75,7 +75,8 @@ func newItem(val reflect.Value) (*item, error) {
 	i.slice = val.Kind() == reflect.Slice
 	//prevent defaults on slices (should vals be appended? should it be reset? how to display defaults?)
 	if i.slice && val.Len() > 0 {
-		return nil, fmt.Errorf("slices cannot have default values")
+		// TODO: do this should be every careful
+		// return nil, fmt.Errorf("slices cannot have default values")
 	}
 	//type checks
 	t := i.elemType()
