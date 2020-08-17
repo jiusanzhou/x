@@ -149,7 +149,7 @@ func (c *Config) mount() error {
 func (c *Config) watch() error {
 
 	if c.opts.onChanged == nil {
-		log.Println("[DEBUG] without onchanged listener")
+		// log.Println("[DEBUG] without onchanged listener")
 		return nil
 	}
 
