@@ -3,13 +3,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"strings"
 	"time"
 
-	"github.com/spf13/pflag"
 	"go.zoe.im/x/cli"
-	"go.zoe.im/x/cli/config"
 	"go.zoe.im/x/version"
 )
 
@@ -22,35 +18,6 @@ type globallConfig struct {
 type sleepConfig struct {
 	Time   time.Duration `json:"time"`
 	Dreams []string      `opts:"env=DREAMS" json:"dreams"`
-}
-
-func main() {
-
-	// flagParse()
-	cliRun()
-}
-
-func flagParse() {
-	fset := pflag.NewFlagSet("x", pflag.PanicOnError)
-
-	var cfg globallConfig
-
-	fset.StringVar(&cfg.Name, "name", "", "Just for test")
-
-	fset.Parse(os.Args)
-
-	fmt.Println("===>", cfg.Name)
-
-	_, err := config.New(&cfg, config.WithType("json"), config.WithName("./testdata/config"))
-	if err != nil {
-		fmt.Println("[ERROR]", err)
-	}
-
-	fmt.Println("===>", cfg.Name)
-
-	fset.Parse(strings.Split("xx  --name aaax", " "))
-
-	fmt.Println("===>", cfg.Name)
 }
 
 func cliRun() {
@@ -99,4 +66,8 @@ func cliRun() {
 		),
 	)
 	cmd.Run()
+}
+
+func main() {
+	cliRun()
 }
