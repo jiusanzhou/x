@@ -118,17 +118,19 @@ func GlobalConfig(v interface{}, cfos ...ConfigOption) Option {
 		c.globalOpts = append(c.globalOpts, opts.New(v))
 
 		// only do while we has defined a config command
+		// bug here, we need to set changed function only while we have, not just name config
 		if len(cfos) == 0 {
 			return
 		}
 
-		// parse flags while onchanged, before call custom onchanged
-		WithConfigChanged(func(o, n interface{}) {
-			c.ParseFlags(os.Args)
-		})(cfopts)
-
 		for _, o := range cfos {
 			o(cfopts)
+		}
+
+		// parse flags while onchanged, before call custom onchanged
+		// at last version,this function called before o, why???
+		if cfopts.onChanged != nil {
+			WithConfigChanged(func(o, n interface{}) { c.ParseFlags(os.Args) })(cfopts)
 		}
 
 		c.globalOpts = append(c.globalOpts, opts.New(cfopts))
