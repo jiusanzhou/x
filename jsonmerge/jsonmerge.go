@@ -6,11 +6,50 @@ import (
 	"reflect"
 )
 
-// Merge merge json value
+// ...
+var (
+	Default = New()
+)
+
+// Merge ...
 func Merge(dst interface{}, src ...interface{}) error {
+	return Default.Merge(dst, src...)
+}
+
+type factory struct {
+	overwrite                  bool
+	overwriteWithEmptySrc      bool
+	overwriteSliceWithEmptySrc bool
+	typeCheck                  bool
+	appendSlice                bool
+	maxMergeDepth              int
+}
+
+// Interface ...
+type Interface interface {
+	Merge(dst interface{}, src ...interface{}) error
+	With(otps ...Option) Interface
+}
+
+// New return the
+func New(opts ...Option) Interface {
+	f := &factory{
+		overwrite:                  false,
+		overwriteWithEmptySrc:      true,
+		overwriteSliceWithEmptySrc: false,
+		typeCheck:                  true,
+		appendSlice:                true,
+		maxMergeDepth:              2,
+	}
+
+	return f.With(opts...)
+}
+
+// Merge merge json value
+func (f *factory) Merge(dst interface{}, src ...interface{}) error {
 	var err error
 	for _, v := range src {
-		err = merge(dst, v)
+		err = f.merge(dst, v)
 		// TODO: continue with param
 		if err != nil {
 			return err
@@ -20,7 +59,7 @@ func Merge(dst interface{}, src ...interface{}) error {
 	return err
 }
 
-func merge(dst interface{}, src interface{}) error {
+func (f *factory) merge(dst interface{}, src interface{}) error {
 	if dst != nil && reflect.ValueOf(dst).Kind() != reflect.Ptr {
 		return ErrNonPointerArgument
 	}
@@ -38,7 +77,7 @@ func merge(dst interface{}, src interface{}) error {
 	if vDst.Type() != vSrc.Type() {
 		return ErrDifferentArgumentsTypes
 	}
-	_, err = deepMerge(vDst, vSrc, 0)
+	_, err = f.deepMerge(vDst, vSrc, 0)
 	return err
 }
 
@@ -49,15 +88,8 @@ func merge(dst interface{}, src interface{}) error {
 // if the type of dstIn or src is slice and the items type is map
 // and the length or dst and src is the same
 // merge each other
-func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err error) {
+func (f *factory) deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err error) {
 	dst = dstIn
-
-	overwrite := false
-	overwriteWithEmptySrc := true
-	overwriteSliceWithEmptySrc := false
-	typeCheck := true
-	appendSlice := true
-	mergeArray := false
 
 	// TODO:
 	switch dst.Kind() {
@@ -104,7 +136,7 @@ func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err erro
 				}
 			}
 
-			dstElement, err = deepMerge(dstElement, srcElement, depth+1)
+			dstElement, err = f.deepMerge(dstElement, srcElement, depth+1)
 			if err != nil {
 				return
 			}
@@ -118,28 +150,28 @@ func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err erro
 		// if the slice items type is not simple and same lenght
 		// length < x
 		if (!isEmptyValue(src) ||
-			overwriteWithEmptySrc ||
-			overwriteSliceWithEmptySrc) &&
-			(overwrite || isEmptyValue(dst)) && !appendSlice {
-			if typeCheck && src.Type() != dst.Type() {
+			f.overwriteWithEmptySrc ||
+			f.overwriteSliceWithEmptySrc) &&
+			(f.overwrite || isEmptyValue(dst)) && !f.appendSlice {
+			if f.typeCheck && src.Type() != dst.Type() {
 				err = fmt.Errorf("cannot override two slices with different type (%s, %s)", src.Type(), dst.Type())
 				return
 			}
 
 			newSlice = src
-		} else if mergeArray && depth <= 2 && dst.Len() == src.Len() {
+		} else if (f.maxMergeDepth < 0 || depth <= f.maxMergeDepth) && dst.Len() == src.Len() && !f.appendSlice {
 			// merge item
 			// TODO: hardcode the maxDepth
 			var nislice = reflect.MakeSlice(reflect.TypeOf([]interface{}{}), dst.Len(), dst.Len())
 			for i := 0; i < dst.Len(); i++ {
 				var ni reflect.Value
-				ni, err = deepMerge(dst.Index(i), src.Index(i), depth+1)
+				ni, err = f.deepMerge(dst.Index(i), src.Index(i), depth+1)
 				nislice.Index(i).Set(ni)
 			}
 
 			newSlice = nislice
-		} else if appendSlice {
-			if typeCheck && src.Type() != dst.Type() {
+		} else if f.appendSlice {
+			if f.typeCheck && src.Type() != dst.Type() {
 				err = fmt.Errorf("cannot append two slice with different type (%s, %s)", src.Type(), dst.Type())
 				return
 			}
@@ -157,8 +189,8 @@ func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err erro
 		}
 
 		if dst.Kind() != reflect.Ptr && src.Type().AssignableTo(dst.Type()) {
-			if dst.IsNil() || overwrite {
-				if overwrite || isEmptyValue(dst) {
+			if dst.IsNil() || f.overwrite {
+				if f.overwrite || isEmptyValue(dst) {
 					if dst.CanSet() {
 						dst.Set(src)
 					} else {
@@ -169,17 +201,17 @@ func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err erro
 		}
 
 		if src.Kind() != reflect.Interface {
-			if dst.IsNil() || (src.Kind() != reflect.Ptr && overwrite) {
-				if dst.CanSet() && (overwrite || isEmptyValue(dst)) {
+			if dst.IsNil() || (src.Kind() != reflect.Ptr && f.overwrite) {
+				if dst.CanSet() && (f.overwrite || isEmptyValue(dst)) {
 					dst.Set(src)
 				}
 			} else if src.Kind() == reflect.Ptr {
-				if dst, err = deepMerge(dst.Elem(), src.Elem(), depth+1); err != nil {
+				if dst, err = f.deepMerge(dst.Elem(), src.Elem(), depth+1); err != nil {
 					return
 				}
 				dst = dst.Addr()
 			} else if dst.Elem().Type() == src.Type() {
-				if dst, err = deepMerge(dst.Elem(), src, depth+1); err != nil {
+				if dst, err = f.deepMerge(dst.Elem(), src, depth+1); err != nil {
 					return
 				}
 			} else {
@@ -189,20 +221,20 @@ func deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Value, err erro
 			break
 		}
 
-		if dst.IsNil() || overwrite {
-			if (overwrite || isEmptyValue(dst)) && (overwriteWithEmptySrc || !isEmptyValue(src)) {
+		if dst.IsNil() || f.overwrite {
+			if (f.overwrite || isEmptyValue(dst)) && (f.overwriteWithEmptySrc || !isEmptyValue(src)) {
 				if dst.CanSet() {
 					dst.Set(src)
 				} else {
 					dst = src
 				}
 			}
-		} else if _, err = deepMerge(dst.Elem(), src.Elem(), depth+1); err != nil {
+		} else if _, err = f.deepMerge(dst.Elem(), src.Elem(), depth+1); err != nil {
 			return
 		}
 
 	default:
-		mustSet := (!isEmptyValue(src) || overwriteWithEmptySrc) || (isEmptyValue(dst))
+		mustSet := (!isEmptyValue(src) || f.overwriteWithEmptySrc) || (isEmptyValue(dst))
 		if mustSet {
 			if dst.CanSet() {
 				dst.Set(src)
