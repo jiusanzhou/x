@@ -3,7 +3,7 @@ package jsonmerge
 // Option ...
 type Option func(f *factory)
 
-func (f *factory) With(otps ...Option) *factory {
+func (f *factory) With(otps ...Option) Interface {
 	for _, o := range otps {
 		o(f)
 	}
