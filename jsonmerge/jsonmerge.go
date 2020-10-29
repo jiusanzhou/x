@@ -247,12 +247,6 @@ func (f *factory) deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Va
 	return dst, err
 }
 
-// MergeJSONWithHardCode ...
-func MergeJSONWithHardCode(dst interface{}, src interface{}) error {
-
-	return nil
-}
-
 // IsReflectNil is the reflect value provided nil
 func isReflectNil(v reflect.Value) bool {
 	k := v.Kind()
