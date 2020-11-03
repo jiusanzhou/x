@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
@@ -25,14 +26,20 @@ import (
 )
 
 var (
-	EnvStoreKey = "X_LDFLAGS"
+	onlyVersion = false
+	envStoreKey = "X_LDFLAGS"
+	defaultArgs = []string{}
 
+	// data
 	gitVersion string
 	gitCommit  string
 	gitState   string
-
-	defaultArgs = []string{}
 )
+
+func init() {
+	flag.BoolVar(&onlyVersion, "v", onlyVersion, "Print only version tag")
+	flag.StringVar(&envStoreKey, "env-key", envStoreKey, "Env key to store the LDFLAGS")
+}
 
 func genLDFlags() string {
 
@@ -111,6 +118,10 @@ func gitRun(args ...string) string {
 }
 
 func main() {
+	// parse command
+	flag.Parse()
+
+	// add more args for git
 	if len(os.Args) > 1 {
 		// set root path
 		defaultArgs = append(defaultArgs, "--work-tree", os.Args[1])
@@ -120,9 +131,13 @@ func main() {
 	gitState = treeState()
 	gitVersion = releaseTag(gitCommit)
 
+	if onlyVersion {
+		fmt.Println(gitVersion)
+		return
+	}
+
 	// store ldflags into env
 	st := genLDFlags()
-
-	os.Setenv(EnvStoreKey, st)
+	os.Setenv(envStoreKey, st)
 	fmt.Println(st)
 }
