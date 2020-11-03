@@ -131,13 +131,14 @@ func main() {
 	gitState = treeState()
 	gitVersion = releaseTag(gitCommit)
 
+	st := genLDFlags()
+	
 	if onlyVersion {
 		fmt.Println(gitVersion)
 		return
 	}
 
 	// store ldflags into env
-	st := genLDFlags()
 	os.Setenv(envStoreKey, st)
 	fmt.Println(st)
 }
