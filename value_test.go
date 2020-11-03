@@ -23,6 +23,12 @@ func TestNewValue(t *testing.T) {
 		{"IfnOr: Int 0", V(1).Ifn(func() bool { return true }).Or(-1), 1},
 	}
 
+	fn := func(v interface{}, err error) (interface{}, error) {
+		return v, err
+	}
+
+	fn(fn(nil, nil))
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.v.Interface(); !reflect.DeepEqual(got, tt.want) {
