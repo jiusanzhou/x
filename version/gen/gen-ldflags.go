@@ -122,7 +122,7 @@ func main() {
 	flag.Parse()
 
 	// add more args for git
-	if len(os.Args) > 1 {
+	if len(flag.Args()) > 1 {
 		// set root path
 		defaultArgs = append(defaultArgs, "--work-tree", os.Args[1])
 	}
@@ -132,7 +132,7 @@ func main() {
 	gitVersion = releaseTag(gitCommit)
 
 	st := genLDFlags()
-	
+
 	if onlyVersion {
 		fmt.Println(gitVersion)
 		return
