@@ -95,3 +95,12 @@ func (v *Value) Ifn(fn func() bool) *Value {
 	v.cond = fn()
 	return v
 }
+
+// Unwrap the value from (value, error)
+// if err != nil, return v
+func (v *Value) Unwrap(mv interface{}, err error) *Value {
+	if err == nil {
+		v.val = mv
+	}
+	return v
+}
