@@ -67,7 +67,14 @@ func NewOption(needCmd bool, opts ...cli.Option) cli.Option {
 		c.Command.Version = Get().GitVersion
 		// if needCmd is true, we need to install a version command
 		if needCmd {
+			// register the version command
 			c.Register(NewCommand(opts...))
+
+			// register a -v flag
+			if c.Flags().Lookup("version") == nil {
+				c.SetVersionTemplate(`{{printf "%s\n" .Version}}`)
+				c.Flags().BoolP("version", "v", false, "version for "+c.Name())
+			}
 		}
 	}
 }
