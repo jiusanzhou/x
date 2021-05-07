@@ -29,7 +29,7 @@ type GraceSignalChan chan struct{}
 func GraceStart(f func(ch GraceSignalChan) error) error {
 
 	// handler signal to exit
-	stopCh := make(GraceSignalChan)
+	stopCh := make(GraceSignalChan, 1)
 	defer close(stopCh)
 
 	var errCh chan error
@@ -58,7 +58,7 @@ func GraceRun(f func() error) error {
 
 	// make a signal handler
 
-	var errCh chan error
+	errCh := make(chan error, 1)
 	go func() {
 		errCh <- f()
 	}()
