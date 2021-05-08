@@ -75,6 +75,13 @@ func (r *Response) WithData(d interface{}) *Response {
 	return r
 }
 
+// WithDataOrErr set data and error
+func (r *Response) WithDataOrErr(d interface{}, err error) *Response {
+	r.Data = d
+	r.err = err
+	return r
+}
+
 // WithErrorf set errorf
 func (r *Response) WithErrorf(msg string, a ...interface{}) *Response {
 	r.Error = fmt.Sprintf(msg, a...)
