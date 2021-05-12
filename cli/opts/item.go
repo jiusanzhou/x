@@ -81,6 +81,7 @@ func newItem(val reflect.Value) (*item, error) {
 	//type checks
 	t := i.elemType()
 	if t.Kind() == reflect.Ptr {
+		// TODO: why? can we init this pointer?
 		return nil, fmt.Errorf("slice elem (%s) cannot be a pointer", t.Kind())
 	} else if i.slice && t.Kind() == reflect.Bool {
 		return nil, fmt.Errorf("slice of bools not supported")
@@ -99,6 +100,7 @@ func newItem(val reflect.Value) (*item, error) {
 		i.noarg = true
 	}
 	if !supported {
+		// if we are a struct we can netsted
 		return nil, fmt.Errorf("field type not supported: %s", t.Kind())
 	}
 	return i, nil
@@ -268,6 +270,10 @@ type durationValue time.Duration
 
 func newDurationValue(p *time.Duration) *durationValue {
 	return (*durationValue)(p)
+}
+
+func (d durationValue) String() string {
+	return time.Duration(d).String()
 }
 
 func (d *durationValue) Set(s string) error {
