@@ -1,8 +1,6 @@
 package sh
 
 import (
-	"time"
-
 	"mvdan.cc/sh/v3/interp"
 )
 
@@ -30,7 +28,7 @@ var Params = interp.Params
 //
 // The last or innermost module is always DefaultExec. You can make it
 // unreachable by adding a middleware that never calls its next module.
-var WithExecModule = interp.WithExecModules
+// var WithExecModule = interp.WithExecModules
 
 // WithOpenModule sets up a runner with a chain of OpenModule middlewares. The
 // chain is set up starting at the end, so that the first middleware in the list
@@ -38,7 +36,7 @@ var WithExecModule = interp.WithExecModules
 //
 // The last or innermost module is always DefaultOpen. You can make it
 // unreachable by adding a middleware that never calls its next module.
-var WithOpenModule = interp.WithOpenModules
+// var WithOpenModule = interp.WithOpenModules
 
 // StdIO configures an interpreter's standard input, standard output, and
 // standard error. If out or err are nil, they default to a writer that discards
@@ -49,9 +47,9 @@ var StdIO = interp.StdIO
 // program to stop after being sent an interrupt signal, after
 // which a kill signal will be sent. This process will happen when the
 // interpreter's context is cancelled.
-func Timeout(t time.Duration) func(r *interp.Runner) error {
-	return func(r *interp.Runner) error {
-		r.KillTimeout = t
-		return nil
-	}
-}
+// func Timeout(t time.Duration) func(r *interp.Runner) error {
+// 	return func(r *interp.Runner) error {
+// 		r.KillTimeout = t
+// 		return nil
+// 	}
+// }
