@@ -32,7 +32,7 @@ func GraceStart(f func(ch GraceSignalChan) error) error {
 	stopCh := make(GraceSignalChan, 1)
 	defer close(stopCh)
 
-	var errCh chan error
+	errCh := make(chan error, 1)
 	go func() {
 		errCh <- f(stopCh)
 	}()
