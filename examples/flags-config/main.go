@@ -10,9 +10,10 @@ import (
 )
 
 type globallConfig struct {
-	Name  string `opts:"env" json:"name"`
-	Male  bool   `opts:"env" json:"male"`
+	Name  string `opts:"env, group=demo" json:"name"`
+	Male  bool   `opts:"env, group=demo" json:"male"`
 	Sleep time.Duration
+	SleepConfig sleepConfig `opts:"-"` // global, or command sub flags
 }
 
 type sleepConfig struct {
@@ -21,13 +22,11 @@ type sleepConfig struct {
 }
 
 func cliRun() {
-	var cfg globallConfig
-	// _, err := config.New(&cfg)
-	// if err != nil {
-	// 	fmt.Println("create a configuration error:", err)
-	// }
+	cfg := globallConfig{
+		Sleep: time.Second * 1,
+	}
 	cmd := cli.New(
-		cli.Name("test"),
+		cli.Name("example-flags-config"),
 		version.NewOption(true),
 		cli.Run(func(c *cli.Command, args ...string) {
 			c.Help()
@@ -36,7 +35,6 @@ func cliRun() {
 
 	cmd.Option(cli.GlobalConfig(
 		&cfg,
-		cli.WithConfigName(),
 		cli.WithConfigChanged(func(o, n interface{}) {
 			log.Println("config changed:", n)
 		}),

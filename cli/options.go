@@ -112,28 +112,25 @@ func GlobalConfig(v interface{}, cfos ...ConfigOption) Option {
 	cfopts := newConfigOptions()
 
 	return func(c *Command) {
-		// create a new flags set from config struct
-		// generate flags from config
-		// load config from source before flags parsed(get flags)
-		c.globalOpts = append(c.globalOpts, opts.New(v))
-
-		// only do while we has defined a config command
-		// bug here, we need to set changed function only while we have, not just name config
-		if len(cfos) == 0 {
-			return
-		}
-
 		for _, o := range cfos {
 			o(cfopts)
 		}
 
+		// register config flags
+		c.globalOpts = append(c.globalOpts, opts.New(cfopts))
+
+		if cfopts.AutoFlags {
+			// create a new flags set from config struct
+			// generate flags from config
+			// load config from source before flags parsed(get flags)
+			c.globalOpts = append(c.globalOpts, opts.New(v))
+		}
+
 		// parse flags while onchanged, before call custom onchanged
-		// at last version,this function called before o, why???
+		// at last version, this function called before o, why???
 		if cfopts.onChanged != nil {
 			WithConfigChanged(func(o, n interface{}) { c.ParseFlags(os.Args) })(cfopts)
 		}
-
-		c.globalOpts = append(c.globalOpts, opts.New(cfopts))
 
 		// TODO: do once
 

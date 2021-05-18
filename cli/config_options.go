@@ -26,8 +26,9 @@ import (
 // configConfig contains options for config parse
 type configOptions struct {
 	// config file name
-	Config      []string `opts:"env,short=c,help=configuration's name(config); without extension name(toml|yaml|json)"`
-	ConfigTypes []string
+	Config      []string `opts:"env,short=c,help=configuration's name(config)"`
+	ConfigTypes []string `opts:"help=configuration file's extension"`
+	AutoFlags bool `opts:"-"`
 
 	onChanged func(o, n interface{})
 
@@ -36,6 +37,13 @@ type configOptions struct {
 
 // ConfigOption defined config option for cli
 type ConfigOption func(co *configOptions)
+
+// WithAutoFlags set auto register flags
+func WithAutoFlags(v bool) ConfigOption {
+	return func(co *configOptions) {
+		co.AutoFlags = v
+	}
+}
 
 // WithConfigName set config name
 func WithConfigName(names ...string) ConfigOption {
@@ -68,6 +76,8 @@ func newConfigOptions() *configOptions {
 
 		// TODO: opts can't supported slice with default values
 		ConfigTypes: []string{"toml", "yaml", "json"},
+
+		AutoFlags: true, // default enable auto generate flags from config
 	}
 }
 
