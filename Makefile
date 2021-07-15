@@ -5,7 +5,7 @@ export GO111MODULE=on
 
 TEST_FLAGS := ""
 
-default: test
+default: fmt lint test
 
 getdeps:
 	@echo "Installing golint" && go get -u golang.org/x/lint/golint
