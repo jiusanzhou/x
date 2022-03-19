@@ -1,3 +1,5 @@
+//go:build !go1.18
+
 package x
 
 import "reflect"
@@ -7,19 +9,6 @@ type Value struct {
 	val interface{}
 
 	cond bool
-}
-
-// NewValue create the value for expression
-func NewValue(v interface{}) *Value {
-	return &Value{
-		val:  v,
-		cond: true,
-	}
-}
-
-// V for simple to create Value like
-func V(v interface{}) *Value {
-	return NewValue(v)
 }
 
 // auto generate the type gen
@@ -71,6 +60,11 @@ func (v *Value) Interface() interface{} {
 	return v.val
 }
 
+// Value ...
+func (v *Value) Value() interface{} {
+	return v.val
+}
+
 // ============= the scope =================
 
 // Or Value(a).Or(-1)
@@ -103,4 +97,23 @@ func (v *Value) Unwrap(mv interface{}, err error) *Value {
 		v.val = mv
 	}
 	return v
+}
+
+// NewValue create the value for expression
+func NewValue(v interface{}) *Value {
+	return &Value{
+		val:  v,
+		cond: true,
+	}
+}
+
+// V for simple to create Value like
+func V(v interface{}) *Value {
+	return NewValue(v)
+}
+
+// Unwrap the value from (value, error)
+// if err != nil, return v
+func Unwrap(mv interface{}, err error) *Value {
+	return V(mv).Unwrap(mv, err)
 }
