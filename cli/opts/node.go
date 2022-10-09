@@ -18,6 +18,7 @@ type node struct {
 	flagsets   []*flag.FlagSet
 
 	loaded bool
+	cmds   map[string]*node
 
 	//pretend these are in the user struct :)
 	internalOpts struct {
@@ -31,6 +32,8 @@ func newNode(val reflect.Value) *node {
 	n := &node{
 		flagNames: map[string]bool{},
 		envNames:  map[string]bool{},
+
+		cmds: map[string]*node{},
 	}
 	//all new node's MUST be an addressable struct
 	t := val.Type()

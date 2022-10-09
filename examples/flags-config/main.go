@@ -10,10 +10,12 @@ import (
 )
 
 type globallConfig struct {
-	Name  string `opts:"env, group=demo" json:"name"`
-	Male  bool   `opts:"env, group=demo" json:"male"`
-	Sleep time.Duration
-	SleepConfig sleepConfig `opts:"-"` // global, or command sub flags
+	Name string `opts:"env, group=demo" json:"name"`
+	Male bool   `opts:"env, group=demo" json:"male"`
+	// command=sleep prefix=sleep group=sleep
+	// default global flag, if we add command, move to command
+	Sleep *sleepConfig `opts:"prefix=sleep"` // flat to global
+	Wait  *sleepConfig `opts:"command=wait"` // register for sub command
 }
 
 type sleepConfig struct {
@@ -23,7 +25,12 @@ type sleepConfig struct {
 
 func cliRun() {
 	cfg := globallConfig{
-		Sleep: time.Second * 1,
+		Sleep: &sleepConfig{
+			Time: time.Second * 2,
+		},
+		Wait: &sleepConfig{
+			Time: time.Second * 1,
+		},
 	}
 	cmd := cli.New(
 		cli.Name("example-flags-config"),
@@ -40,14 +47,11 @@ func cliRun() {
 		}),
 	))
 
-	sleepCfg := &sleepConfig{
-		// Dreams: []string{"a", "v"},
-	}
+	waitCfg := &sleepConfig{}
 
 	cmd.Register(
 		cli.New(
-			cli.Name("stop"),
-			cli.Config(sleepCfg),
+			cli.Name("wait"),
 			cli.Run(func(c *cli.Command, args ...string) {
 				fmt.Printf("Hello my name is %s, and I'm a ", cfg.Name)
 				if cfg.Male {
@@ -55,11 +59,11 @@ func cliRun() {
 				} else {
 					fmt.Println("women.")
 				}
-				fmt.Println("Sleeping for", cfg.Sleep)
-				time.Sleep(cfg.Sleep)
+				fmt.Println("Sleeping for", cfg.Sleep.Time)
+				time.Sleep(cfg.Sleep.Time)
 				fmt.Println("Wakeup.\x00")
-				fmt.Println("Sleeping for", sleepCfg.Time)
-				fmt.Println("Dreams", sleepCfg.Dreams)
+				fmt.Println("Waiting for", waitCfg.Time)
+				fmt.Println("Dreams", waitCfg.Dreams)
 			}),
 		),
 	)

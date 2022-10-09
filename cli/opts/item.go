@@ -86,6 +86,7 @@ func newItem(val reflect.Value) (*item, error) {
 	} else if i.slice && t.Kind() == reflect.Bool {
 		return nil, fmt.Errorf("slice of bools not supported")
 	}
+
 	switch t.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
