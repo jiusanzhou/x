@@ -27,6 +27,7 @@ import (
 type configOptions struct {
 	// config file name
 	Config      []string `opts:"env,short=c,help=configuration's name(config)"`
+	ConfigDirs  []string `opts:"help=directory to load configs"`
 	ConfigTypes []string `opts:"help=configuration file's extension"`
 	AutoFlags   bool     `opts:"-"`
 
