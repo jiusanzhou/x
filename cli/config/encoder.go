@@ -59,6 +59,21 @@ func (t *EncoderFactory) Encode(name string, out interface{}) ([]byte, error) {
 	return er.Encode(out)
 }
 
+// Register the encoder for default factory
+func Register(Encoder Encoder, names ...string) error {
+	return encoderFactory.Register(Encoder, names...)
+}
+
+// Decode the data with default factory
+func Decode(name string, data []byte, out interface{}) error {
+	return encoderFactory.Decode(name, data, out)
+}
+
+// Encode the data with default factory
+func Encode(name string, out interface{}) ([]byte, error) {
+	return encoderFactory.Encode(name, out)
+}
+
 // NewEncoderFactory create a new Encoder factry
 func NewEncoderFactory() *EncoderFactory {
 	return &EncoderFactory{
