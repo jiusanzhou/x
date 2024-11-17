@@ -72,7 +72,7 @@ func (s *SelectorField) Init() error {
 	err = s.Operator.Validate(s.Values)
 
 	s.Do(func() {
-		s.tplStr = prepareTplPathKey(s.Key)
+		s.tplStr = PrepareTplPathKey(s.Key)
 		s.tpl, err = template.New(s.Key).Funcs(sprig.FuncMap()).Parse(s.tplStr)
 		if err != nil {
 			logrus.Debugf("create tpl %s error %s", s.tplStr, err)
@@ -91,7 +91,7 @@ func (s *SelectorField) Init() error {
 
 func (s *SelectorField) Match(obj interface{}) bool {
 	// get the value out with key
-	val, err := getValueByPath(s.tpl, obj)
+	val, err := GetValueByTpl(obj, s.tpl)
 	if err != nil {
 		logrus.Errorf("parse value from tpl %s error %v", s.Key, err)
 		return false
@@ -99,7 +99,9 @@ func (s *SelectorField) Match(obj interface{}) bool {
 	return s.Operator.Match(fmt.Sprintf("%s", val), s.Values)
 }
 
-func prepareTplPathKey(s string) string {
+// PrepareTplPathKey add dot for value picker
+// if we are not a full template
+func PrepareTplPathKey(s string) string {
 	ss := strings.TrimSpace(s)
 
 	// check if we are a full template
@@ -114,7 +116,8 @@ func prepareTplPathKey(s string) string {
 	return fmt.Sprintf("{{ %s }}", ss)
 }
 
-func getValueByPath(tpl *template.Template, obj interface{}) (interface{}, error) {
+// GetValueByTpl get value from template
+func GetValueByTpl(obj interface{}, tpl *template.Template) (interface{}, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			logrus.Errorf("parse value from tpl %s error %v", tpl.Name(), err)
@@ -129,11 +132,12 @@ func getValueByPath(tpl *template.Template, obj interface{}) (interface{}, error
 	return buf.String(), nil
 }
 
+// GetValueByPath get value from path
 func GetValueByPath(obj interface{}, key string) (interface{}, error) {
-	tpl, err := template.New(key).Funcs(sprig.FuncMap()).Parse(prepareTplPathKey(key))
+	tpl, err := template.New(key).Funcs(sprig.FuncMap()).Parse(PrepareTplPathKey(key))
 	if err != nil {
 		return nil, err
 	}
 
-	return getValueByPath(tpl, obj)
+	return GetValueByTpl(obj, tpl)
 }
