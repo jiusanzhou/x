@@ -1,4 +1,5 @@
 name: "Zoeo"
+sleep: 10s
 stop:
   dreams:
     - HEALTH

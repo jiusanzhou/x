@@ -1,96 +1,31 @@
+//go:build go1.18
+
 package x
 
-import "reflect"
-
-// Value ...
-type Value struct {
-	val interface{}
+type Value[T comparable] struct {
+	val T
 
 	cond bool
+	zero T
 }
 
-// auto generate the type gen
-
-// String ...
-func (v *Value) String() (string, bool) {
-	vv, ok := v.val.(string)
-	return vv, ok
-}
-
-// Bool ...
-func (v *Value) Bool() (bool, bool) {
-	vv, ok := v.val.(bool)
-	return vv, ok
-}
-
-// Int ...
-func (v *Value) Int() (int, bool) {
-	vv, ok := v.val.(int)
-	return vv, ok
-}
-
-// Int32 ...
-func (v *Value) Int32() (int32, bool) {
-	vv, ok := v.val.(int32)
-	return vv, ok
-}
-
-// Int64 ...
-func (v *Value) Int64() (int64, bool) {
-	vv, ok := v.val.(int64)
-	return vv, ok
-}
-
-// Float32 ...
-func (v *Value) Float32() (float32, bool) {
-	vv, ok := v.val.(float32)
-	return vv, ok
-}
-
-// Float64 ...
-func (v *Value) Float64() (float64, bool) {
-	vv, ok := v.val.(float64)
-	return vv, ok
-}
-
-// Interface ...
-func (v *Value) Interface() interface{} {
+func (v *Value[T]) Value() T {
 	return v.val
 }
-
-// Value ...
-func (v *Value) Value() interface{} {
-	return v.val
-}
-
-// ============= the scope =================
 
 // Or Value(a).Or(-1)
-func (v *Value) Or(r interface{}) *Value {
+func (v *Value[T]) Or(r T) *Value[T] {
 	// check if is else
 	// check if val is nil or zero value
-	if !v.cond || v.val == nil || reflect.ValueOf(v.val).IsZero() {
+	if !v.cond || v.zero == v.val {
 		v.val = r
 	}
 	return v
 }
 
-// If Value(a).If(a == 1).Or(0)
-// can accept a func() bool
-func (v *Value) If(r bool) *Value {
-	v.cond = r
-	return v
-}
-
-// Ifn can accept a function: func() bool
-func (v *Value) Ifn(fn func() bool) *Value {
-	v.cond = fn()
-	return v
-}
-
 // Unwrap the value from (value, error)
 // if err != nil, return v
-func (v *Value) Unwrap(mv interface{}, err error) *Value {
+func (v *Value[T]) Unwrap(mv T, err error) *Value[T] {
 	if err == nil {
 		v.val = mv
 	}
@@ -98,20 +33,15 @@ func (v *Value) Unwrap(mv interface{}, err error) *Value {
 }
 
 // NewValue create the value for expression
-func NewValue(v interface{}) *Value {
-	return &Value{
+func NewValue[T comparable](v T) *Value[T] {
+	return &Value[T]{
 		val:  v,
 		cond: true,
 	}
 }
 
-// V for simple to create Value like
-func V(v interface{}) *Value {
-	return NewValue(v)
-}
-
 // Unwrap the value from (value, error)
 // if err != nil, return v
-func Unwrap(mv interface{}, err error) *Value {
-	return V(mv).Unwrap(mv, err)
+func Unwrap[T comparable](mv T, err error) *Value[T] {
+	return NewValue(mv).Unwrap(mv, err)
 }
