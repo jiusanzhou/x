@@ -133,20 +133,27 @@ func GetValueByTpl(obj interface{}, tpl *template.Template) (interface{}, error)
 }
 
 // GetValueByPath get value from path
-func GetValueByPath(obj interface{}, key string, cacheFns ...func(key string) *template.Template) (interface{}, error) {
+func GetValueByPath(obj interface{}, key string, cache ...SyncMap[string, *template.Template]) (interface{}, error) {
 	var tpl *template.Template
-	for _, fn := range cacheFns {
-		tpl = fn(key)
-		if tpl != nil {
-			break
-		}
+
+	hasCache := len(cache) > 0
+
+	if hasCache {
+		// load from cache
+		tpl, _ = cache[0].Load(key)
 	}
 
 	if tpl == nil {
+		// create a new template
 		var err error
 		tpl, err = template.New(key).Funcs(sprig.FuncMap()).Parse(PrepareTplPathKey(key))
 		if err != nil {
 			return nil, err
+		}
+
+		// save to cache
+		if hasCache {
+			cache[0].Store(key, tpl)
 		}
 	}
 
