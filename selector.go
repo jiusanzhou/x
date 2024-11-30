@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/gobwas/glob"
@@ -133,10 +133,21 @@ func GetValueByTpl(obj interface{}, tpl *template.Template) (interface{}, error)
 }
 
 // GetValueByPath get value from path
-func GetValueByPath(obj interface{}, key string) (interface{}, error) {
-	tpl, err := template.New(key).Funcs(sprig.FuncMap()).Parse(PrepareTplPathKey(key))
-	if err != nil {
-		return nil, err
+func GetValueByPath(obj interface{}, key string, cacheFns ...func(key string) *template.Template) (interface{}, error) {
+	var tpl *template.Template
+	for _, fn := range cacheFns {
+		tpl = fn(key)
+		if tpl != nil {
+			break
+		}
+	}
+
+	if tpl == nil {
+		var err error
+		tpl, err = template.New(key).Funcs(sprig.FuncMap()).Parse(PrepareTplPathKey(key))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return GetValueByTpl(obj, tpl)
