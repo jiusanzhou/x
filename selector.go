@@ -133,10 +133,10 @@ func GetValueByTpl(obj interface{}, tpl *template.Template) (interface{}, error)
 }
 
 // GetValueByPath get value from path
-func GetValueByPath(obj interface{}, key string, cache ...SyncMap[string, *template.Template]) (interface{}, error) {
+func GetValueByPath(obj interface{}, key string, cache ...*SyncMap[string, *template.Template]) (interface{}, error) {
 	var tpl *template.Template
 
-	hasCache := len(cache) > 0
+	hasCache := len(cache) > 0 && cache[0] != nil
 
 	if hasCache {
 		// load from cache
