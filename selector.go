@@ -104,6 +104,11 @@ func (s *SelectorField) Match(obj interface{}) bool {
 func PrepareTplPathKey(s string) string {
 	ss := strings.TrimSpace(s)
 
+	// check if we are the raw template
+	if len(s) > 2 && s[0] == '`' && s[len(s)-1] == '`' {
+		return ss
+	}
+
 	// check if we are a full template
 	if len(s) > 4 && s[0] == '{' && s[1] == '{' && s[len(s)-1] == '}' && s[len(s)-2] == '}' {
 		return ss
