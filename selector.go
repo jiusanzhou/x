@@ -106,7 +106,7 @@ func PrepareTplPathKey(s string) string {
 
 	// check if we are the raw template
 	if len(s) > 2 && s[0] == '`' && s[len(s)-1] == '`' {
-		return ss
+		return ss[1 : len(ss)-1]
 	}
 
 	// check if we are a full template
