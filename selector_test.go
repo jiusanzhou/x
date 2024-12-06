@@ -28,7 +28,8 @@ var example = Example{
 
 var node_mock = &v1.Node{
 	ObjectMeta: metav1.ObjectMeta{
-		Name: "im_node_name",
+		Name:      "im_node_name",
+		Namespace: "imnodename",
 	},
 }
 
@@ -54,6 +55,7 @@ func TestSelectorField_Match(t *testing.T) {
 		{"Node Match Failed", fields{Key: ".Namex", Values: []string{"im_node_name"}}, node_mock, false},
 		{"Node Match Failed 1", fields{Key: ".Name", Values: []string{"im_node_name1"}}, node_mock, false},
 		{"Raw Template", fields{Key: "`test_name`", Values: []string{"test_name"}}, node_mock, true},
+		{"Space Match", fields{Key: ".Namespace", Values: []string{"im*node*name"}}, node_mock, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
