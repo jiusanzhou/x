@@ -71,6 +71,7 @@ func (n *node) addStructFields(group string, sv reflect.Value) error {
 	for i := 0; i < sv.NumField(); i++ {
 		sf := sv.Type().Field(i)
 		val := sv.Field(i)
+
 		if err := n.addStructField(group, "", sf, val); err != nil {
 			return fmt.Errorf("field '%s' %s", sf.Name, err)
 		}
@@ -78,13 +79,15 @@ func (n *node) addStructFields(group string, sv reflect.Value) error {
 	return nil
 }
 
-func (n *node) addStructField(group string, prefix string, sf reflect.StructField, val reflect.Value) error {
+func (n *node) addStructField(group, prefix string, sf reflect.StructField, val reflect.Value) error {
 	kv := newKV(sf.Tag.Get("opts"))
+
 	help := sf.Tag.Get("help")
 	mode := sf.Tag.Get("type") // legacy versions of this package used "type"
 	if m := sf.Tag.Get("mode"); m != "" {
 		mode = m // allow "mode" to be used directly, undocumented!
 	}
+
 	// if we are a struct, nested the struct
 	stv := val
 	if val.Kind() == reflect.Ptr {
@@ -169,7 +172,8 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group, prefix string, val r
 		name = prefix + "-" + name
 	}
 
-	//new kv mode supercede legacy mode
+	// new kv mode supercede legacy mode
+	// allow "mode" to be used directly, undocumented!
 	if t, ok := kv.take("mode"); ok {
 		mode = t
 	}
@@ -221,6 +225,12 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group, prefix string, val r
 				explicit = false
 				e = camel2const(i.name)
 			}
+
+			// with prefix
+			if prefix != "" {
+				e = camel2const(prefix) + "_" + e
+			}
+
 			_, set := n.envNames[e]
 			if set && explicit {
 				return n.errorf("env name '%s' already in use", e)

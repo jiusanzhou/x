@@ -32,6 +32,8 @@ func newNode(val reflect.Value) *node {
 	n := &node{
 		flagNames: map[string]bool{},
 		envNames:  map[string]bool{},
+
+		cmds: map[string]*node{},
 	}
 	//all new node's MUST be an addressable struct
 	t := val.Type()
@@ -47,7 +49,7 @@ func newNode(val reflect.Value) *node {
 	return n
 }
 
-// errorf to be stored until parse-time
+//errorf to be stored until parse-time
 func (n *node) errorf(format string, args ...interface{}) error {
 	err := fmt.Errorf(format, args...)
 	//only store the first error
