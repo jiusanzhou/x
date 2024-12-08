@@ -10,10 +10,10 @@ import (
 )
 
 type globallConfig struct {
-	Name  string `opts:"env, group=demo" json:"name"`
-	Male  bool   `opts:"env, group=demo" json:"male"`
-	Sleep time.Duration
-	SleepConfig sleepConfig `opts:"-"` // global, or command sub flags
+	Name        string `opts:"env, group=demo" json:"name"`
+	Male        bool   `opts:"env, group=demo" json:"male"`
+	Sleep       time.Duration
+	SleepConfig sleepConfig
 }
 
 type sleepConfig struct {

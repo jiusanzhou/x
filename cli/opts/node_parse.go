@@ -71,21 +71,69 @@ func (n *node) addStructFields(group string, sv reflect.Value) error {
 	for i := 0; i < sv.NumField(); i++ {
 		sf := sv.Type().Field(i)
 		val := sv.Field(i)
-		if err := n.addStructField(group, sf, val); err != nil {
+		if err := n.addStructField(group, "", sf, val); err != nil {
 			return fmt.Errorf("field '%s' %s", sf.Name, err)
 		}
 	}
 	return nil
 }
 
-func (n *node) addStructField(group string, sf reflect.StructField, val reflect.Value) error {
+func (n *node) addStructField(group string, prefix string, sf reflect.StructField, val reflect.Value) error {
 	kv := newKV(sf.Tag.Get("opts"))
 	help := sf.Tag.Get("help")
 	mode := sf.Tag.Get("type") // legacy versions of this package used "type"
 	if m := sf.Tag.Get("mode"); m != "" {
 		mode = m // allow "mode" to be used directly, undocumented!
 	}
-	if err := n.addKVField(kv, sf.Name, help, mode, group, val); err != nil {
+	// if we are a struct, nested the struct
+	stv := val
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return nil
+		}
+
+		stv = val.Elem()
+	}
+	if stv.Kind() == reflect.Struct {
+
+		// if we have command set
+		cmd := sf.Tag.Get("command")
+		if v, ok := kv.take("command"); ok {
+			cmd = v
+		}
+
+		// if cmd == "" {
+		// 	cmd = camel2dash(sf.Name)
+		// }
+
+		if cmd != "" {
+			n.cmds[cmd] = newNode(stv)
+			return nil
+		}
+
+		// my new prefix
+		prefixn := sf.Tag.Get("prefix")
+		if v, ok := kv.take("prefix"); ok {
+			prefixn = v
+		}
+		if prefixn == "" {
+			prefixn = camel2dash(sf.Name)
+		}
+
+		for i := 0; i < stv.NumField(); i++ {
+			sff := stv.Type().Field(i)
+			vall := stv.Field(i)
+			// add prefix and command
+			// don't merge the prefix with pre prefix
+			if err := n.addStructField(group, prefixn, sff, vall); err != nil {
+				return fmt.Errorf("netest struct field '%s' %s", sff.Name, err)
+			}
+		}
+		return nil
+	}
+
+	// struct won't call in here
+	if err := n.addKVField(kv, sf.Name, help, mode, group, prefix, val); err != nil {
 		return err
 	}
 	if ks := kv.keys(); len(ks) > 0 {
@@ -94,7 +142,7 @@ func (n *node) addStructField(group string, sf reflect.StructField, val reflect.
 	return nil
 }
 
-func (n *node) addKVField(kv *kv, fName, help, mode, group string, val reflect.Value) error {
+func (n *node) addKVField(kv *kv, fName, help, mode, group, prefix string, val reflect.Value) error {
 	//ignore unaddressed/unexported fields
 	if !val.CanSet() {
 		return nil
@@ -115,6 +163,12 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group string, val reflect.V
 			name = getSingular(name)
 		}
 	}
+
+	// add prefix for name
+	if prefix != "" {
+		name = prefix + "-" + name
+	}
+
 	//new kv mode supercede legacy mode
 	if t, ok := kv.take("mode"); ok {
 		mode = t

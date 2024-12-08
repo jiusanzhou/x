@@ -18,6 +18,7 @@ type node struct {
 	flagsets   []*flag.FlagSet
 
 	loaded bool
+	cmds   map[string]*node
 
 	//pretend these are in the user struct :)
 	internalOpts struct {
@@ -46,7 +47,7 @@ func newNode(val reflect.Value) *node {
 	return n
 }
 
-//errorf to be stored until parse-time
+// errorf to be stored until parse-time
 func (n *node) errorf(format string, args ...interface{}) error {
 	err := fmt.Errorf(format, args...)
 	//only store the first error
