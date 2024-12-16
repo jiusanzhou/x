@@ -34,6 +34,10 @@ func (n *node) flagGroup(name string) *itemGroup {
 	return g
 }
 
+func (n *node) cmdOpts(cmd string) Opts {
+	return n.cmds[cmd]
+}
+
 func (n *node) flags() []*item {
 	flags := []*item{}
 	for _, g := range n.flagGroups {
