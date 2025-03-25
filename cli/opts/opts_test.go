@@ -1,6 +1,7 @@
 package opts
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -15,6 +16,31 @@ func TestSimple(t *testing.T) {
 		Bar string
 		Age int
 		Old bool `opts:"short=o"`
+	}
+	c := &Config{}
+	//flag example parse
+	err := testNew(c).parse("--foo", "hello", "--bar", "world", "--age", "18", "-o")
+	if err != nil {
+		t.Fatal(err)
+	}
+	//check config is filled
+	check(t, c.Foo, "hello")
+	check(t, c.Bar, "world")
+	check(t, c.Age, 18)
+	check(t, c.Old, true)
+}
+
+func TestIngoreUnknown(t *testing.T) {
+	type InnerConfig struct {
+		Context context.Context
+	}
+	//config
+	type Config struct {
+		Foo        string
+		Bar        string
+		Age        int
+		Old        bool        `opts:"short=o"`
+		IngoredOne InnerConfig `opts:"-"`
 	}
 	c := &Config{}
 	//flag example parse
