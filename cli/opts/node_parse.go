@@ -82,6 +82,11 @@ func (n *node) addStructFields(group string, sv reflect.Value) error {
 func (n *node) addStructField(group, prefix string, sf reflect.StructField, val reflect.Value) error {
 	kv := newKV(sf.Tag.Get("opts"))
 
+	// we must check if ignore this field at first
+	if _, ok := kv.take("-"); ok {
+		return nil
+	}
+
 	help := sf.Tag.Get("help")
 	mode := sf.Tag.Get("type") // legacy versions of this package used "type"
 	if m := sf.Tag.Get("mode"); m != "" {
