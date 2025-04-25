@@ -95,12 +95,11 @@ func WithChild() Option {
 
 // NewOptions return a new options
 func NewOptions(opts ...Option) *Options {
-	fs, _ := NewFSProvider("") // default current path
 	o := &Options{
 		// names:     []string{"config"}, // name
 		name:      "config",
-		typs:      []string{"yaml"}, // encoder
-		providers: []Provider{fs},   // provider
+		typs:      []string{"yaml"},              // encoder
+		providers: []Provider{DefaultFSProvider}, // provider
 	}
 
 	for _, op := range opts {

@@ -54,6 +54,9 @@ func V[T comparable](v T) *Value[T] {
 
 // Unwrap the value from (value, error)
 // if err != nil, return v
-func Unwrap[T comparable](mv T, err error) *Value[T] {
-	return V(mv).Unwrap(mv, err)
+func Unwrap[T any](mv T, err error) any {
+	if err != nil {
+		panic(err)
+	}
+	return mv
 }

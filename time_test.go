@@ -44,7 +44,7 @@ func TestDuration_MarshalJSON(t *testing.T) {
 				t.Errorf("Duration.MarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(got, "\""+tt.want+"\"") {
 				t.Errorf("Duration.MarshalJSON() = %v, want %v", got, tt.want)
 			}
 		})
@@ -68,7 +68,7 @@ func TestDuration_UnmarshalJSON(t *testing.T) {
 	var got Duration
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := (&got).UnmarshalJSON([]byte(tt.data))
+			err := (&got).UnmarshalJSON([]byte("\"" + tt.data + "\""))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Duration.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}

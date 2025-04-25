@@ -16,25 +16,6 @@
 
 package x
 
-import (
-	"time"
-)
-
-// Duration implement JSON marshall for time.Duration
-type Duration time.Duration
-
-// MarshalJSON implement MarshalJSON
-func (d Duration) MarshalJSON() ([]byte, error) {
-	return []byte(time.Duration(d).String()), nil
-}
-
-// UnmarshalJSON implement UnmarshalJSON
-func (d *Duration) UnmarshalJSON(b []byte) error {
-	v, err := time.ParseDuration(string(b))
-	*d = Duration(v)
-	return err
-}
-
 // Min
 func Min[V int32 | int64 | float32 | float64](a, b V) V {
 	if a < b {
