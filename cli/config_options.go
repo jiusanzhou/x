@@ -28,9 +28,12 @@ type configOptions struct {
 	// config file name
 	Config      []string `opts:"env,short=c,help=configuration's name(config)"`
 	ConfigTypes []string `opts:"help=configuration file's extension"`
-	AutoFlags bool `opts:"-"`
+	AutoFlags   bool     `opts:"-"`
 
 	onChanged func(o, n interface{})
+
+	// directlly options for config
+	opts []config.Option
 
 	// TODO: use parent directory for config???
 }
@@ -68,6 +71,13 @@ func WithConfigChanged(f func(o, n interface{})) ConfigOption {
 	}
 }
 
+// WithConfigOptions ...
+func WithConfigOptions(opts ...config.Option) ConfigOption {
+	return func(co *configOptions) {
+		co.opts = opts
+	}
+}
+
 // WithConfigType set config
 
 func newConfigOptions() *configOptions {
@@ -83,7 +93,7 @@ func newConfigOptions() *configOptions {
 
 // create a new Config options from flags
 func (c *configOptions) build() []config.Option {
-	opts := []config.Option{}
+	opts := c.opts
 
 	if len(c.Config) > 0 {
 		opts = append(opts, config.WithNames(c.Config...))

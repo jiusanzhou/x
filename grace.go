@@ -41,7 +41,7 @@ func GraceStart(f func(ch GraceSignalChan) error) error {
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGTERM, syscall.SIGINT)
 
-	defer func(){
+	defer func() {
 		stopCh <- struct{}{}
 	}()
 

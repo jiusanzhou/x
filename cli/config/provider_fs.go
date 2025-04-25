@@ -10,6 +10,10 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
+var (
+	DefaultFSProvider, _ = NewFSProvider("") // default current path
+)
+
 // TODO(zoe): use file to wrap the root path file name and decoder/encoder
 type file struct{}
 

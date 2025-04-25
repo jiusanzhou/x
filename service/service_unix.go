@@ -1,3 +1,6 @@
+//go:build linux || darwin || solaris || aix
+// +build linux darwin solaris aix
+
 /*
  * Copyright (c) 2020 wellwell.work, LLC by Zoe
  *
@@ -13,8 +16,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-// +build linux darwin solaris aix
 
 package service
 

@@ -33,7 +33,7 @@ func TestDuration_MarshalJSON(t *testing.T) {
 			"Simple", Duration(time.Second), "1s", false,
 		},
 		{
-			"Simple 2", Duration(time.Second + 10 * time.Minute + time.Hour), "1h10m1s", false,
+			"Simple 2", Duration(time.Second + 10*time.Minute + time.Hour), "1h10m1s", false,
 		},
 	}
 	for _, tt := range tests {
@@ -44,7 +44,7 @@ func TestDuration_MarshalJSON(t *testing.T) {
 				t.Errorf("Duration.MarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !reflect.DeepEqual(got, "\""+tt.want+"\"") {
 				t.Errorf("Duration.MarshalJSON() = %v, want %v", got, tt.want)
 			}
 		})
@@ -54,7 +54,7 @@ func TestDuration_MarshalJSON(t *testing.T) {
 func TestDuration_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
-		want  Duration
+		want    Duration
 		data    string
 		wantErr bool
 	}{
@@ -62,13 +62,13 @@ func TestDuration_UnmarshalJSON(t *testing.T) {
 			"Simple", Duration(time.Second), "1s", false,
 		},
 		{
-			"Simple 2", Duration(time.Second + 10 * time.Minute + time.Hour), "1h10m1s", false,
+			"Simple 2", Duration(time.Second + 10*time.Minute + time.Hour), "1h10m1s", false,
 		},
 	}
 	var got Duration
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := (&got).UnmarshalJSON([]byte(tt.data))
+			err := (&got).UnmarshalJSON([]byte("\"" + tt.data + "\""))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Duration.UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
 			}

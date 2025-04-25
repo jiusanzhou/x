@@ -32,9 +32,9 @@ func TestLineWriter(t *testing.T) {
 		return nil
 	}, true)
 
-	cases := []struct{
+	cases := []struct {
 		input []string
-		want []string
+		want  []string
 	}{
 		{[]string{"a\n"}, []string{"a"}},
 		{[]string{"aaaa\naaaa\n"}, []string{"aaaa", "aaaa"}},
@@ -47,7 +47,7 @@ func TestLineWriter(t *testing.T) {
 
 		{[]string{"aaaa\naa", "aa", "\n"}, []string{"aaaa", "aaaa"}},
 	}
-	
+
 	for _, c := range cases {
 		got = nil
 		io.Copy(wrt, bytes.NewReader([]byte(strings.Join(c.input, ""))))
