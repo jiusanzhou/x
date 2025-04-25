@@ -33,7 +33,7 @@ func TestDuration_MarshalJSON(t *testing.T) {
 			"Simple", Duration(time.Second), "1s", false,
 		},
 		{
-			"Simple 2", Duration(time.Second + 10 * time.Minute + time.Hour), "1h10m1s", false,
+			"Simple 2", Duration(time.Second + 10*time.Minute + time.Hour), "1h10m1s", false,
 		},
 	}
 	for _, tt := range tests {
@@ -54,7 +54,7 @@ func TestDuration_MarshalJSON(t *testing.T) {
 func TestDuration_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
-		want  Duration
+		want    Duration
 		data    string
 		wantErr bool
 	}{
@@ -62,7 +62,7 @@ func TestDuration_UnmarshalJSON(t *testing.T) {
 			"Simple", Duration(time.Second), "1s", false,
 		},
 		{
-			"Simple 2", Duration(time.Second + 10 * time.Minute + time.Hour), "1h10m1s", false,
+			"Simple 2", Duration(time.Second + 10*time.Minute + time.Hour), "1h10m1s", false,
 		},
 	}
 	var got Duration

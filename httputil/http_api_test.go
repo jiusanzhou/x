@@ -19,7 +19,6 @@ func TestResponse_Flush(t *testing.T) {
 	}
 }
 
-
 func returnDemo() (int, error) {
 	return 0, nil
 }

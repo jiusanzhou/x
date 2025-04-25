@@ -183,8 +183,8 @@ func (i *item) HasSet() bool {
 	return i.sets != 0
 }
 
-//IsBoolFlag implements the hidden interface
-//documented here https://golang.org/pkg/flag/#Value
+// IsBoolFlag implements the hidden interface
+// documented here https://golang.org/pkg/flag/#Value
 func (i *item) IsBoolFlag() bool {
 	return i.noarg
 }
@@ -234,7 +234,7 @@ func (i *item) EnvName() string {
 	return i.envName
 }
 
-//noopValue defines a flag value which does nothing
+// noopValue defines a flag value which does nothing
 var noopValue = noopValueType(0)
 
 type noopValueType int
@@ -247,7 +247,7 @@ func (noopValueType) Set(s string) error {
 	return nil
 }
 
-//textValue wraps marshaller into a setter
+// textValue wraps marshaller into a setter
 type textValue struct {
 	encoding.TextUnmarshaler
 }
@@ -256,7 +256,7 @@ func (t textValue) Set(s string) error {
 	return t.UnmarshalText([]byte(s))
 }
 
-//binaryValue wraps marshaller into a setter
+// binaryValue wraps marshaller into a setter
 type binaryValue struct {
 	encoding.BinaryUnmarshaler
 }
@@ -265,7 +265,7 @@ func (t binaryValue) Set(s string) error {
 	return t.UnmarshalBinary([]byte(s))
 }
 
-//borrowed from the stdlib :)
+// borrowed from the stdlib :)
 type durationValue time.Duration
 
 func newDurationValue(p *time.Duration) *durationValue {

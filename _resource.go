@@ -19,22 +19,22 @@ func Register(res SourceType, typs ...string) error {
 
 	vtype := reflect.TypeOf(res)
 	if vtype.Kind() == reflect.Ptr {
-			vtype = vtype.Elem()
+		vtype = vtype.Elem()
 	}
 
 	// build the generator function
 	fn := func(data json.RawMessage) (SourceType, error) {
-			src := reflect.New(vtype).Interface().(SourceType)
-			err := json.Unmarshal(data, &src)
-			return src, err
+		src := reflect.New(vtype).Interface().(SourceType)
+		err := json.Unmarshal(data, &src)
+		return src, err
 	}
 
 	// typ := src.Type()
 	for _, typ := range typs {
-			if _, ok := _registry[typ]; ok {
-					return errors.New("type exits: " + typ)
-			}
-			_registry[typ] = fn
+		if _, ok := _registry[typ]; ok {
+			return errors.New("type exits: " + typ)
+		}
+		_registry[typ] = fn
 	}
 
 	return nil
@@ -84,7 +84,7 @@ func (s *Object) UnmarshalJSON(data []byte) error {
 
 	err := json.Unmarshal(data, &s._rawfields)
 	if err != nil {
-			return err
+		return err
 	}
 
 	// TODO: auto have this fields unmarshalling
@@ -93,8 +93,8 @@ func (s *Object) UnmarshalJSON(data []byte) error {
 
 	// auto create the wrapper
 	if fn, ok := _registry[s.Type]; ok {
-			s.res, err = fn(s._raw)
-			return err
+		s.res, err = fn(s._raw)
+		return err
 	}
 
 	return errors.New("source type not supported: " + s.Type)

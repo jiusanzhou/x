@@ -24,7 +24,7 @@ import (
 // lineWriter return a writer with a line callback
 type lineWriter struct {
 	callback func(line []byte) error
-	tmp []byte
+	tmp      []byte
 	// ignore empty line default true
 	ignoreEmpty bool
 	// TODO: end with timeout as a line
@@ -36,7 +36,7 @@ func (t *lineWriter) Write(p []byte) (n int, err error) {
 		return 0, nil
 	}
 
-	// TODO: 
+	// TODO:
 	bts := bytes.Split(p, []byte("\n"))
 
 	// maybe the previous line is ending
@@ -46,11 +46,11 @@ func (t *lineWriter) Write(p []byte) (n int, err error) {
 
 	// if last item is not empty, we are not ending
 	if len(bts[len(bts)-1]) > 0 {
-		t.tmp = bts[len(bts) - 1]
+		t.tmp = bts[len(bts)-1]
 	}
 
 	if len(bts) > 1 {
-		for _, bs := range bts[0:len(bts) - 1] {
+		for _, bs := range bts[0 : len(bts)-1] {
 			t.callback(bs)
 		}
 	}
@@ -61,7 +61,7 @@ func (t *lineWriter) Write(p []byte) (n int, err error) {
 // LineWriter return a writer with a line callback
 func LineWriter(fn func(line []byte) error, ignoreEmpty bool) io.Writer {
 	return &lineWriter{
-		callback: fn,
+		callback:    fn,
 		ignoreEmpty: ignoreEmpty,
 	}
 }

@@ -40,7 +40,7 @@ type HealthChecker func(ep *Endpoint, req *http.Request, resp *http.Response) bo
 // NewSimpleHealthCheck ... TODO: how to add timeout
 func NewSimpleHealthCheck(method string, path string, content string) HealthChecker {
 	return func(ep *Endpoint, req *http.Request, resp *http.Response) bool {
-		
+
 		if resp == nil {
 			// modify the req
 			req.URL.Path = path

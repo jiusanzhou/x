@@ -78,7 +78,7 @@ func newKV(s string) *kv {
 	return &kv{m: m}
 }
 
-//borrowed from https://github.com/huandu/xstrings/blob/master/convert.go#L77
+// borrowed from https://github.com/huandu/xstrings/blob/master/convert.go#L77
 func camel2dash(str string) string {
 	if len(str) == 0 {
 		return ""
@@ -148,7 +148,7 @@ func camel2dash(str string) string {
 	return buf.String()
 }
 
-//borrowed from https://raw.githubusercontent.com/jinzhu/inflection/master/inflections.go
+// borrowed from https://raw.githubusercontent.com/jinzhu/inflection/master/inflections.go
 var getSingular = func() func(str string) string {
 	type inflection struct {
 		regexp  *regexp.Regexp
