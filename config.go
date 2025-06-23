@@ -29,3 +29,7 @@ func (e *TypedLazyConfig) String() string {
 	// Format the TypedLazyConfig fields into a string.
 	return fmt.Sprintf("{%s@%s %s}", e.Name, e.Type, string(e.Config))
 }
+
+func (e *TypedLazyConfig) Unmarshal(obj any) error {
+	return json.Unmarshal(e.Config, obj)
+}
