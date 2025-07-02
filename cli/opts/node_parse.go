@@ -123,8 +123,7 @@ func (n *node) addStructField(group, prefix string, sf reflect.StructField, val 
 		prefixn := sf.Tag.Get("prefix")
 		if v, ok := kv.take("prefix"); ok {
 			prefixn = v
-		}
-		if prefixn == "" {
+		} else {
 			prefixn = camel2dash(sf.Name)
 		}
 
@@ -235,6 +234,8 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group, prefix string, val r
 			if prefix != "" {
 				e = camel2const(prefix) + "_" + e
 			}
+
+			e = strings.ReplaceAll(e, "-", "_")
 
 			_, set := n.envNames[e]
 			if set && explicit {

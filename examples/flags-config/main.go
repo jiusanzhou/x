@@ -13,7 +13,7 @@ type globallConfig struct {
 	Name        string `opts:"env, group=demo" json:"name"`
 	Male        bool   `opts:"env, group=demo" json:"male"`
 	Sleep       time.Duration
-	SleepConfig sleepConfig
+	SleepConfig sleepConfig `opts:"name=sleep" json:"sleep"`
 }
 
 type sleepConfig struct {
