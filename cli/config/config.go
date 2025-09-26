@@ -4,6 +4,7 @@ package config
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"log"
 	"reflect"
 
@@ -11,31 +12,11 @@ import (
 	"go.zoe.im/x/jsonmerge"
 )
 
-// Config present runtime
-type Config struct {
-	// parsed and merged result
-	valtyp reflect.Type
-	v      interface{} // store the value
-	obj    map[string]interface{}
-	data   []byte // use obj to marshal
-
-	names []string // store all names from options
-
-	opts *Options // options
-
-	// store the latest error state
-	errs x.Errors
-
-	// all sources loaded
-	sources map[string]*source
-}
-
 // souce is the real data of a config source
 type source struct {
 	// store all type of data from srouce
-	v    interface{}            // store the value
-	obj  map[string]interface{} // with map
-	data []byte                 // raw source data
+	obj  map[string]any // with map
+	data []byte         // raw source data
 
 	// options of source
 	typ      string   // encoder type
@@ -48,9 +29,31 @@ type source struct {
 
 func (s *source) load(data []byte) error {
 	// TODO: decode to v object directlly
+	// clean the old data first
+	s.obj = map[string]any{}
 	// decode data to obj
 	s.err = encoderFactory.Decode(s.typ, data, &s.obj)
 	return s.err
+}
+
+// Config present runtime
+type Config struct {
+	valtyp reflect.Type
+	v      any // store the real one value
+	v0     any // store the old value, for notify, null if is the first time laod config
+
+	// parsed and merged result
+	obj  map[string]any
+	data []byte // use obj to marshal
+
+	names []string // store all names from options
+	// all sources loaded
+	sources map[string]*source
+
+	opts *Options // options
+
+	// store the latest error state
+	errs x.Errors
 }
 
 // Options return the options
@@ -59,14 +62,14 @@ func (c *Config) Options() *Options {
 }
 
 // CopyValue copy the raw data of config to object
-func (c *Config) CopyValue(v interface{}) error {
+func (c *Config) CopyValue(v any) error {
 	// check if v is a pointer type
 	// FIXME: ugly way
 	return json.NewDecoder(bytes.NewBuffer(c.data)).Decode(v)
 }
 
 // Get take a value out from
-func (c *Config) Get(key string) (interface{}, bool) {
+func (c *Config) Get(key string) (any, bool) {
 	v, ok := c.obj[key]
 	return v, ok
 }
@@ -81,8 +84,12 @@ func (c *Config) load() error {
 	if c.opts.name != "" {
 		c.names = append(c.names, c.opts.name)
 	}
+
+	// distinct the names
 	for _, n := range c.opts.names {
-		c.names = append(c.names, n)
+		if !x.Contains(c.names, n) {
+			c.names = append(c.names, n)
+		}
 	}
 
 	// providers are store in optiosns, why we don't use factory?
@@ -102,7 +109,7 @@ func (c *Config) load() error {
 					// TODO: new a v to merge directlly
 					// v: reflect.New()
 					data:     data,
-					obj:      make(map[string]interface{}),
+					obj:      make(map[string]any),
 					typ:      typ,
 					provider: provider,
 					name:     n,
@@ -129,9 +136,9 @@ func (c *Config) mount() error {
 	var err error
 
 	// make sure c.obj is empty
-	c.obj = map[string]interface{}{}
+	c.obj = map[string]any{}
 
-	// merge obejct and data?
+	// merge all data from sources
 	for _, n := range c.names {
 		if s, ok := c.sources[n]; ok {
 			c.errs.Add(jsonmerge.Merge(&c.obj, s.obj))
@@ -140,50 +147,54 @@ func (c *Config) mount() error {
 
 	c.data, err = json.Marshal(c.obj)
 	c.errs.Add(err)
-	c.errs.Add(json.Unmarshal(c.data, &c.v))
 
-	// NOTE: re parse flags from os.Args in onChanged
+	// copy and store the old value
+	if c.v0 == nil {
+		c.v0 = reflect.New(c.valtyp.Elem()).Interface()
+	}
+	reflect.ValueOf(c.v0).Elem().Set(reflect.ValueOf(c.v).Elem())
+
+	// create a new value from data
+	vv := reflect.New(c.valtyp.Elem()).Interface()
+	c.errs.Add(json.Unmarshal(c.data, vv))
+
+	// TODO:atomic to update the vv to c.v
+	// update the vv to c.v
+	reflect.ValueOf(c.v).Elem().Set(reflect.ValueOf(vv).Elem())
+
 	return c.errs
 }
 
 func (c *Config) watch() error {
-
 	if c.opts.onChanged == nil {
-		// log.Println("[DEBUG] without onchanged listener")
 		return nil
 	}
 
 	for _, s := range c.sources {
 		w, err := s.provider.Watch(s.name, s.typ)
 		if err != nil {
-			log.Println("[ERROR] start watcher for", s.name, "error:", err)
+			log.Println("[ERROR] start watcher for config:", s.name, "error:", err)
 			continue
 		}
 
-		log.Println("[DEBUG] start watcher for", s.name)
+		log.Println("[DEBUG] start watcher for config:", s.name)
 
 		go func(s *source) {
-			// TODO: watch the source, auto load while change and re-mount
-
 			for {
 				cs, err := w.Next()
 				if err != nil {
 					continue
 				}
 
-				if err != nil {
-					log.Println("[ERROR] reload error", err)
-				}
-
-				// load one source
+				// load the changed data to the source
 				s.load(cs.Data)
 
-				// mount config again
+				// let's remount all the data again
 				c.mount()
 
 				// NOTE: notify with onChanged who we can get the obj of old one
 				// TODO: add a old one
-				c.opts.onChanged(nil, c.v)
+				c.opts.onChanged(c.v0, c.v)
 			}
 		}(s)
 	}
@@ -192,7 +203,7 @@ func (c *Config) watch() error {
 }
 
 // New create a new config
-func New(v interface{}, opts ...Option) (*Config, error) {
+func New(v any, opts ...Option) (*Config, error) {
 	c := &Config{
 		v:       v,
 		opts:    NewOptions(opts...),
@@ -201,6 +212,9 @@ func New(v interface{}, opts ...Option) (*Config, error) {
 
 	// generate the type of v
 	c.valtyp = reflect.TypeOf(v)
+	if c.valtyp.Kind() != reflect.Ptr {
+		return nil, errors.New("value must be a pointer")
+	}
 
 	var err error
 
