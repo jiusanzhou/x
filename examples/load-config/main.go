@@ -1,7 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"reflect"
 	"time"
 
 	"go.zoe.im/x"
@@ -29,11 +32,33 @@ func cliRun() {
 			&cfg,
 			cli.WithConfigName("config", "config2"),
 			cli.WithConfigOptions(config.WithProvider(fsprovider)),
+			cli.WithConfigChanged(func(o, n interface{}) {
+				// print the pointer of o and n
+				fmt.Printf("config changed: %p %p\n", o, n)
+				fmt.Printf("config changed: %v %v\n", o, n)
+			}),
 		), // this should change the default config name
 		cli.Run(func(c *cli.Command, args ...string) {
 			fmt.Println("=====> Name:", cfg.Name)
 			fmt.Println("=====> Male:", cfg.Male)
 			fmt.Println("=====> Sleep:", cfg.Sleep)
+
+			var demo any
+
+			demo = &globallConfig{
+				Name: "demo",
+				Male: true,
+			}
+
+			// create the demo2
+			demo2 := reflect.New(reflect.TypeOf(demo).Elem()).Interface()
+			// unmarshal to demo2
+			json.Unmarshal([]byte(`{"sleep": "1s"}`), demo2)
+			// copy to demo
+			reflect.ValueOf(demo).Elem().Set(reflect.ValueOf(demo2).Elem())
+
+			json.NewEncoder(os.Stdout).Encode(demo)
+
 			time.Sleep(cfg.Sleep.Duration())
 		}),
 	)

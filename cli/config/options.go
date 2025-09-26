@@ -96,7 +96,6 @@ func WithChild() Option {
 // NewOptions return a new options
 func NewOptions(opts ...Option) *Options {
 	o := &Options{
-		// names:     []string{"config"}, // name
 		name:      "config",
 		typs:      []string{"yaml"},              // encoder
 		providers: []Provider{DefaultFSProvider}, // provider
