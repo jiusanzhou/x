@@ -27,7 +27,7 @@ func flagParse() {
 
 	fmt.Println("===>", cfg.Name)
 
-	_, err := config.New(&cfg, config.WithType("json"), config.WithName("./testdata/config"))
+	err := config.New(&cfg, config.WithType("json"), config.WithName("./testdata/config")).Init()
 	if err != nil {
 		fmt.Println("[ERROR]", err)
 	}

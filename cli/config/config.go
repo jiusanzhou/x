@@ -38,9 +38,10 @@ func (s *source) load(data []byte) error {
 
 // Config present runtime
 type Config struct {
-	valtyp reflect.Type
-	v      any // store the real one value
-	v0     any // store the old value, for notify, null if is the first time laod config
+	valtyp  reflect.Type
+	v       any // store the real one value, current value
+	v0      any // store the old value, for notify, null if is the first time laod config
+	vdeault any // store the default value
 
 	// parsed and merged result
 	obj  map[string]any
@@ -72,6 +73,16 @@ func (c *Config) CopyValue(v any) error {
 func (c *Config) Get(key string) (any, bool) {
 	v, ok := c.obj[key]
 	return v, ok
+}
+
+// Default return the default value of config
+func (c *Config) Default() any {
+	return c.vdeault
+}
+
+// Current return the current value of config
+func (c *Config) Current() any {
+	return c.v
 }
 
 // load load data from provider
@@ -145,6 +156,7 @@ func (c *Config) mount() error {
 		}
 	}
 
+	// marshal obj
 	c.data, err = json.Marshal(c.obj)
 	c.errs.Add(err)
 
@@ -156,6 +168,9 @@ func (c *Config) mount() error {
 
 	// create a new value from data
 	vv := reflect.New(c.valtyp.Elem()).Interface()
+	// set the default value to vv
+	reflect.ValueOf(vv).Elem().Set(reflect.ValueOf(c.vdeault).Elem())
+	// unmarshal data to vv
 	c.errs.Add(json.Unmarshal(c.data, vv))
 
 	// TODO:atomic to update the vv to c.v
@@ -176,8 +191,6 @@ func (c *Config) watch() error {
 			log.Println("[ERROR] start watcher for config:", s.name, "error:", err)
 			continue
 		}
-
-		log.Println("[DEBUG] start watcher for config:", s.name)
 
 		go func(s *source) {
 			for {
@@ -202,29 +215,10 @@ func (c *Config) watch() error {
 	return nil
 }
 
-// New create a new config
-func New(v any, opts ...Option) (*Config, error) {
-	c := &Config{
-		v:       v,
-		opts:    NewOptions(opts...),
-		sources: make(map[string]*source),
-	}
-
-	// generate the type of v
-	c.valtyp = reflect.TypeOf(v)
+func (c *Config) Init() error {
 	if c.valtyp.Kind() != reflect.Ptr {
-		return nil, errors.New("value must be a pointer")
+		return errors.New("value must be a pointer")
 	}
-
-	var err error
-
-	// marsal to data and unmarshal to object
-	c.data, err = json.Marshal(c.v)
-	c.errs.Add(err)
-
-	c.errs.Add(json.Unmarshal(c.data, &c.obj))
-
-	// new a value from valtyp
 
 	// we are trying to load configuration
 	// simple way is just load data
@@ -238,11 +232,36 @@ func New(v any, opts ...Option) (*Config, error) {
 	// create a new watcher
 	c.watch() // NOTE: main process
 
+	var err error
 	// TODO: make sure errs can be a nil
 	if c.errs.IsNil() {
 		err = nil
 	} else {
 		err = c.errs
 	}
-	return c, err
+	return err
+}
+
+// New create a new config
+func New(v any, opts ...Option) *Config {
+	c := &Config{
+		v:       v,
+		opts:    NewOptions(opts...),
+		sources: make(map[string]*source),
+	}
+
+	// generate the type of v
+	c.valtyp = reflect.TypeOf(v)
+
+	// marsal to data and unmarshal to object
+	// c.data, err = json.Marshal(c.v)
+	// c.errs.Add(err)
+	// c.errs.Add(json.Unmarshal(c.data, &c.obj))
+
+	// new a value from valtyp
+	// restore the default from the value type
+	c.vdeault = reflect.New(c.valtyp.Elem()).Interface()
+	reflect.ValueOf(c.vdeault).Elem().Set(reflect.ValueOf(v).Elem())
+
+	return c
 }

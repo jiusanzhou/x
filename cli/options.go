@@ -102,8 +102,8 @@ func Run(fn func(cmd *Command, args ...string)) Option {
 	}
 }
 
-// GlobalConfig ...
-func GlobalConfig(v interface{}, cfos ...ConfigOption) Option {
+// GlobalConfig returns option to set the global config
+func GlobalConfig(v any, cfos ...ConfigOption) Option {
 	// create a new config loader, and load content
 	// - add a config file flag to flagset, create flags with config
 	// - create a config instance
@@ -129,18 +129,23 @@ func GlobalConfig(v interface{}, cfos ...ConfigOption) Option {
 		// parse flags while onchanged, before call custom onchanged
 		// at last version, this function called before o, why???
 		if cfopts.onChanged != nil {
-			WithConfigChanged(func(o, n interface{}) { c.ParseFlags(os.Args) })(cfopts)
+			WithConfigChanged(func(o, n any) { c.ParseFlags(os.Args) })(cfopts)
 		}
 
 		// TODO: do once
 
+		c.configobj = config.New(v, cfopts.build()...)
+
+		// register the config command if needs
+		if cfopts.enableCommand {
+			c.Register(NewConfigCommand(c.configobj))
+		}
+
 		// registe PersistentPreRun, but when to get flags
 		PersistentPreRun(func(cmd *Command, _ ...string) {
 			// create config from flags
-			var err error
-			c.configobj, err = config.New(v, cfopts.build()...)
-			if err != nil {
-				log.Println("[WARN] load config error:", err)
+			if err := c.configobj.Init(); err != nil {
+				log.Println("[WARN] init config error:", err)
 				return
 			}
 
@@ -153,13 +158,12 @@ func GlobalConfig(v interface{}, cfos ...ConfigOption) Option {
 }
 
 // Config loads configuration from provider
-func Config(v interface{}) Option {
+func Config(v any) Option {
 	return func(c *Command) {
 		c.opts = append(c.opts, opts.New(v))
 		// we won't to register opts
 		// but we can load from global config
 		// TODO: how to load config with command name
-
 		c.configv = v
 	}
 }

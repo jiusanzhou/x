@@ -36,8 +36,38 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 }
 
 // ToUnstructured implements the value.UnstructuredConverter interface.
-func (d Duration) ToUnstructured() interface{} {
+func (d Duration) ToUnstructured() any {
 	return time.Duration(d).String()
+}
+
+// MarshalYAML implements the yaml.Marshaler interface.
+func (d Duration) MarshalYAML() (any, error) {
+	return d.String(), nil
+}
+
+// String returns a string representation of the duration.
+func (d Duration) String() string {
+	return time.Duration(d).String()
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface.
+func (d *Duration) UnmarshalYAML(unmarshal func(any) error) error {
+	var str string
+	err := unmarshal(&str)
+	if err != nil {
+		return err
+	}
+	return d.DurationFromString(str)
+}
+
+// DurationFromString parses a duration from a string.
+func (d *Duration) DurationFromString(str string) error {
+	duration, err := time.ParseDuration(str)
+	if err != nil {
+		return err
+	}
+	*d = Duration(duration)
+	return nil
 }
 
 // RunWithTimeout execute func with timeout

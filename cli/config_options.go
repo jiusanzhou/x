@@ -30,7 +30,8 @@ type configOptions struct {
 	ConfigTypes []string `opts:"help=configuration file's extension"`
 	AutoFlags   bool     `opts:"-"`
 
-	onChanged func(o, n interface{})
+	enableCommand bool
+	onChanged     func(o, n interface{})
 
 	// directlly options for config
 	opts []config.Option
@@ -68,6 +69,13 @@ func WithConfigChanged(f func(o, n interface{})) ConfigOption {
 		} else {
 			co.onChanged = f
 		}
+	}
+}
+
+// WithConfigCommand set config command
+func WithConfigCommand(enable bool) ConfigOption {
+	return func(co *configOptions) {
+		co.enableCommand = enable
 	}
 }
 

@@ -14,14 +14,18 @@ import (
 )
 
 type globallConfig struct {
-	Name  string     `opts:"env" json:"name"`
-	Male  bool       `opts:"env" json:"male"`
-	Sleep x.Duration `opts:"name=sleep" json:"sleep"`
+	Name    string     `opts:"env" json:"name"`
+	Male    bool       `opts:"env" json:"male"`
+	Sleep   x.Duration `opts:"name=sleep" json:"sleep"`
+	Message string     `opts:"env,name=message" json:"message"`
 }
 
 func cliRun() {
 
-	var cfg globallConfig
+	cfg := &globallConfig{
+		Sleep:   x.Duration(time.Second * 1),
+		Message: "Hello default message",
+	}
 
 	fsprovider, _ := config.NewFSProvider("./examples")
 
@@ -29,7 +33,7 @@ func cliRun() {
 		cli.Name("test"),
 		version.NewOption(true),
 		cli.GlobalConfig(
-			&cfg,
+			cfg,
 			cli.WithConfigName("config", "config2"),
 			cli.WithConfigOptions(config.WithProvider(fsprovider)),
 			cli.WithConfigChanged(func(o, n interface{}) {
@@ -37,11 +41,13 @@ func cliRun() {
 				fmt.Printf("config changed: %p %p\n", o, n)
 				fmt.Printf("config changed: %v %v\n", o, n)
 			}),
+			cli.WithConfigCommand(true),
 		), // this should change the default config name
 		cli.Run(func(c *cli.Command, args ...string) {
 			fmt.Println("=====> Name:", cfg.Name)
 			fmt.Println("=====> Male:", cfg.Male)
 			fmt.Println("=====> Sleep:", cfg.Sleep)
+			fmt.Println("=====> Sleep:", cfg.Message)
 
 			var demo any
 
