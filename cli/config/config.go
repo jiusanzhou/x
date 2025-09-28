@@ -65,7 +65,9 @@ func (c *Config) Options() *Options {
 // CopyValue copy the raw data of config to object
 func (c *Config) CopyValue(v any) error {
 	// check if v is a pointer type
-	// FIXME: ugly way
+	if reflect.TypeOf(v).Kind() != reflect.Ptr {
+		return errors.New("v is not a pointer type")
+	}
 	return json.NewDecoder(bytes.NewBuffer(c.data)).Decode(v)
 }
 
@@ -117,8 +119,6 @@ func (c *Config) load() error {
 
 				// build source object
 				s := source{
-					// TODO: new a v to merge directlly
-					// v: reflect.New()
 					data:     data,
 					obj:      make(map[string]any),
 					typ:      typ,
@@ -160,7 +160,7 @@ func (c *Config) mount() error {
 	c.data, err = json.Marshal(c.obj)
 	c.errs.Add(err)
 
-	// copy and store the old value
+	// copy and store the old value from c.v
 	if c.v0 == nil {
 		c.v0 = reflect.New(c.valtyp.Elem()).Interface()
 	}
@@ -215,22 +215,24 @@ func (c *Config) watch() error {
 	return nil
 }
 
-func (c *Config) Init() error {
+func (c *Config) Init(opts ...Option) error {
+	c.opts = NewOptions(opts...)
+
 	if c.valtyp.Kind() != reflect.Ptr {
 		return errors.New("value must be a pointer")
 	}
 
 	// we are trying to load configuration
 	// simple way is just load data
-	c.load() // NOTE: main process
+	c.load()
 
 	// mount loads all sources to config
 	// load all
-	c.mount() // NOTE: main process
+	c.mount()
 
 	// if we have a listener function just start a new wwatcher
 	// create a new watcher
-	c.watch() // NOTE: main process
+	c.watch()
 
 	var err error
 	// TODO: make sure errs can be a nil
