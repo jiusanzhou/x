@@ -34,7 +34,7 @@ func cliRun() {
 		version.NewOption(true),
 		cli.GlobalConfig(
 			cfg,
-			cli.WithConfigName("config", "config2"),
+			cli.WithConfigName("config"),
 			cli.WithConfigOptions(config.WithProvider(fsprovider)),
 			cli.WithConfigChanged(func(o, n interface{}) {
 				// print the pointer of o and n

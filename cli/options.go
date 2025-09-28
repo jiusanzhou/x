@@ -103,10 +103,18 @@ func Run(fn func(cmd *Command, args ...string)) Option {
 }
 
 // GlobalConfig returns option to set the global config
+var _lockGlobalConfigOption bool
+
 func GlobalConfig(v any, cfos ...ConfigOption) Option {
 	// create a new config loader, and load content
 	// - add a config file flag to flagset, create flags with config
 	// - create a config instance
+
+	if _lockGlobalConfigOption {
+		panic("GlobalConfig can only be called once")
+	}
+
+	_lockGlobalConfigOption = true
 
 	// with out default value at here
 	cfopts := newConfigOptions()
@@ -132,10 +140,6 @@ func GlobalConfig(v any, cfos ...ConfigOption) Option {
 			WithConfigChanged(func(o, n any) { c.ParseFlags(os.Args) })(cfopts)
 		}
 
-		// TODO: do once
-
-		c.configobj = config.New(v, cfopts.build()...)
-
 		// register the config command if needs
 		if cfopts.enableCommand {
 			c.Register(NewConfigCommand(c.configobj))
@@ -143,8 +147,11 @@ func GlobalConfig(v any, cfos ...ConfigOption) Option {
 
 		// registe PersistentPreRun, but when to get flags
 		PersistentPreRun(func(cmd *Command, _ ...string) {
+			// check if the config flags is setted
+
 			// create config from flags
-			if err := c.configobj.Init(); err != nil {
+			c.configobj = config.New(v)
+			if err := c.configobj.Init(cfopts.build()...); err != nil {
 				log.Println("[WARN] init config error:", err)
 				return
 			}

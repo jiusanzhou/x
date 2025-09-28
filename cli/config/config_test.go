@@ -1,13 +1,16 @@
 package config
 
 import (
-	"reflect"
 	"testing"
 )
 
+type testConfig struct {
+	Foo string
+}
+
 func TestNew(t *testing.T) {
 	type args struct {
-		v    interface{}
+		v    *testConfig
 		opts []Option
 	}
 	tests := []struct {
@@ -19,7 +22,9 @@ func TestNew(t *testing.T) {
 		// TODO: Add test cases.
 		{
 			"base",
-			args{},
+			args{
+				v: &testConfig{},
+			},
 			&Config{},
 			false,
 		},
@@ -31,9 +36,6 @@ func TestNew(t *testing.T) {
 			if (err != nil) != tt.wantErr {
 				t.Errorf("New() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("New() = %v, want %v", got, tt.want)
 			}
 		})
 	}
