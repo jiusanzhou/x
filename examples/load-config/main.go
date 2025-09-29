@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"time"
 
 	"go.zoe.im/x"
@@ -14,10 +13,16 @@ import (
 )
 
 type globallConfig struct {
-	Name    string     `opts:"env" json:"name"`
-	Male    bool       `opts:"env" json:"male"`
-	Sleep   x.Duration `opts:"name=sleep" json:"sleep"`
-	Message string     `opts:"env,name=message" json:"message"`
+	Name       string       `opts:"env" json:"name"`
+	Male       bool         `opts:"env" json:"male"`
+	Sleep      x.Duration   `opts:"name=sleep" json:"sleep"`
+	Message    string       `json:"message"`
+	NightSleep *sleepConfig `json:"night_sleep"`
+}
+
+type sleepConfig struct {
+	Place    string     `json:"place"`
+	Duration x.Duration `opts:"name=duration" json:"duration"`
 }
 
 func cliRun() {
@@ -25,6 +30,10 @@ func cliRun() {
 	cfg := &globallConfig{
 		Sleep:   x.Duration(time.Second * 1),
 		Message: "Hello default message",
+		NightSleep: &sleepConfig{
+			Place:    "home",
+			Duration: x.Duration(time.Second * 2),
+		},
 	}
 
 	fsprovider, _ := config.NewFSProvider("./examples")
@@ -38,8 +47,11 @@ func cliRun() {
 			cli.WithConfigOptions(config.WithProvider(fsprovider)),
 			cli.WithConfigChanged(func(o, n interface{}) {
 				// print the pointer of o and n
+				oc := o.(*globallConfig)
+				nc := n.(*globallConfig)
 				fmt.Printf("config changed: %p %p\n", o, n)
 				fmt.Printf("config changed: %v %v\n", o, n)
+				fmt.Printf("config changed: %v %v\n", oc.NightSleep, nc.NightSleep)
 			}),
 			cli.WithConfigCommand(true),
 		), // this should change the default config name
@@ -48,22 +60,9 @@ func cliRun() {
 			fmt.Println("=====> Male:", cfg.Male)
 			fmt.Println("=====> Sleep:", cfg.Sleep)
 			fmt.Println("=====> Sleep:", cfg.Message)
+			fmt.Println("=====> Sleep:", cfg.NightSleep)
 
-			var demo any
-
-			demo = &globallConfig{
-				Name: "demo",
-				Male: true,
-			}
-
-			// create the demo2
-			demo2 := reflect.New(reflect.TypeOf(demo).Elem()).Interface()
-			// unmarshal to demo2
-			json.Unmarshal([]byte(`{"sleep": "1s"}`), demo2)
-			// copy to demo
-			reflect.ValueOf(demo).Elem().Set(reflect.ValueOf(demo2).Elem())
-
-			json.NewEncoder(os.Stdout).Encode(demo)
+			json.NewEncoder(os.Stdout).Encode(cfg)
 
 			time.Sleep(cfg.Sleep.Duration())
 		}),
