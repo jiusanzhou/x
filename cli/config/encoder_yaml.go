@@ -1,7 +1,7 @@
 package config
 
 import (
-	yaml "gopkg.in/yaml.v3"
+	yaml "sigs.k8s.io/yaml"
 )
 
 type yamlEncoder struct{}

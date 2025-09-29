@@ -12,12 +12,18 @@ import (
 	"go.zoe.im/x/version"
 )
 
+type lazyConfig struct {
+	Name    string `json:"name"`
+	Message string `json:"message"`
+}
+
 type globallConfig struct {
-	Name       string       `opts:"env" json:"name"`
-	Male       bool         `opts:"env" json:"male"`
-	Sleep      x.Duration   `opts:"name=sleep" json:"sleep"`
-	Message    string       `json:"message"`
-	NightSleep *sleepConfig `json:"night_sleep"`
+	Name       string          `opts:"env" json:"name"`
+	Male       bool            `opts:"env" json:"male"`
+	Sleep      x.Duration      `opts:"name=sleep" json:"sleep"`
+	Message    string          `json:"message"`
+	NightSleep *sleepConfig    `json:"night_sleep"`
+	Lazy       json.RawMessage `json:"lazy"`
 }
 
 type sleepConfig struct {
