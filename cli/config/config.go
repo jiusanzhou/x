@@ -160,16 +160,21 @@ func (c *Config) mount() error {
 	c.data, err = json.Marshal(c.obj)
 	c.errs.Add(err)
 
+	// deep copy the old value
 	// copy and store the old value from c.v
-	if c.v0 == nil {
-		c.v0 = reflect.New(c.valtyp.Elem()).Interface()
-	}
-	reflect.ValueOf(c.v0).Elem().Set(reflect.ValueOf(c.v).Elem())
+	// if c.v0 == nil {
+	// 	c.v0 = reflect.New(c.valtyp.Elem()).Interface()
+	// }
+	// reflect.ValueOf(c.v0).Elem().Set(reflect.ValueOf(c.v).Elem())
+	c.v0 = x.DeepCopy(c.v)
 
-	// create a new value from data
+	// deep copy from the default value to c.v
+	// deep copy the default value
+	vdefault := x.DeepCopy(c.vdeault)
+	// create the new value vv
 	vv := reflect.New(c.valtyp.Elem()).Interface()
-	// set the default value to vv
-	reflect.ValueOf(vv).Elem().Set(reflect.ValueOf(c.vdeault).Elem())
+	// deep copy the defaut value to the new value vv
+	reflect.ValueOf(vv).Elem().Set(reflect.ValueOf(vdefault).Elem())
 	// unmarshal data to vv
 	c.errs.Add(json.Unmarshal(c.data, vv))
 
@@ -216,11 +221,11 @@ func (c *Config) watch() error {
 }
 
 func (c *Config) Init(opts ...Option) error {
-	c.opts = NewOptions(opts...)
-
 	if c.valtyp.Kind() != reflect.Ptr {
 		return errors.New("value must be a pointer")
 	}
+
+	c.opts = NewOptions(opts...)
 
 	// we are trying to load configuration
 	// simple way is just load data
@@ -254,16 +259,13 @@ func New(v any, opts ...Option) *Config {
 
 	// generate the type of v
 	c.valtyp = reflect.TypeOf(v)
+	// // new a value from valtyp
+	// // restore the default from the value type
+	// c.vdeault = reflect.New(c.valtyp.Elem()).Interface()
+	// reflect.ValueOf(c.vdeault).Elem().Set(reflect.ValueOf(v).Elem())
 
-	// marsal to data and unmarshal to object
-	// c.data, err = json.Marshal(c.v)
-	// c.errs.Add(err)
-	// c.errs.Add(json.Unmarshal(c.data, &c.obj))
-
-	// new a value from valtyp
-	// restore the default from the value type
-	c.vdeault = reflect.New(c.valtyp.Elem()).Interface()
-	reflect.ValueOf(c.vdeault).Elem().Set(reflect.ValueOf(v).Elem())
+	// deep copy the default value to store it
+	c.vdeault = x.DeepCopy(c.v)
 
 	return c
 }

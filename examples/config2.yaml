@@ -1,1 +1,4 @@
 name: Zoe+
+night_sleep:
+  place: London
+  duration: 10m1s
