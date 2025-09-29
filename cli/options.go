@@ -140,6 +140,9 @@ func GlobalConfig(v any, cfos ...ConfigOption) Option {
 			WithConfigChanged(func(o, n any) { c.ParseFlags(os.Args) })(cfopts)
 		}
 
+		// create config from flags
+		c.configobj = config.New(v)
+
 		// register the config command if needs
 		if cfopts.enableCommand {
 			c.Register(NewConfigCommand(c.configobj))
@@ -149,8 +152,6 @@ func GlobalConfig(v any, cfos ...ConfigOption) Option {
 		PersistentPreRun(func(cmd *Command, _ ...string) {
 			// check if the config flags is setted
 
-			// create config from flags
-			c.configobj = config.New(v)
 			if err := c.configobj.Init(cfopts.build()...); err != nil {
 				log.Println("[WARN] init config error:", err)
 				return
