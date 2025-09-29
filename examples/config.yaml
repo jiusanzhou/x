@@ -1,3 +1,6 @@
 name: Zoe
 male: true
 sleep: 10m
+lazy:
+  name: Lazoy
+  message: I'm lazy zoe!
