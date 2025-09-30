@@ -9,9 +9,24 @@ import (
 type tomlEncoder struct{}
 
 func (t tomlEncoder) Encode(v interface{}) ([]byte, error) {
+	// toml encode won't work with raw message.
+	// so we unmarshal it to json first and then marshal to toml
+
+	var obj any
+
+	jsonEncoder := jsonEncoder{}
+	data, err := jsonEncoder.Encode(v)
+	if err != nil {
+		return nil, err
+	}
+	err = jsonEncoder.Decode(data, &obj)
+	if err != nil {
+		return nil, err
+	}
+
 	b := bytes.NewBuffer(nil)
 	defer b.Reset()
-	err := toml.NewEncoder(b).Encode(v)
+	err = toml.NewEncoder(b).Encode(obj)
 	if err != nil {
 		return nil, err
 	}
