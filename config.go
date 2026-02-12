@@ -30,6 +30,7 @@ func (e *TypedLazyConfig) String() string {
 	return fmt.Sprintf("{%s@%s %s}", e.Name, e.Type, string(e.Config))
 }
 
+// Unmarshal parses the Config field into the provided object.
 func (e *TypedLazyConfig) Unmarshal(obj any) error {
 	return json.Unmarshal(e.Config, obj)
 }

@@ -70,8 +70,7 @@ func (d *Duration) DurationFromString(str string) error {
 	return nil
 }
 
-// RunWithTimeout execute func with timeout
-// return if timeout, TODO: exit shuld be more fance
+// RunWithTimeout executes f with a timeout. Returns true if the timeout was reached.
 func RunWithTimeout(f func(exit *bool), timeout time.Duration) bool {
 	exit := false
 	done := make(chan struct{}, 1)

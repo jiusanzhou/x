@@ -16,7 +16,7 @@
 
 package x
 
-// Min
+// Min returns the smaller of two values.
 func Min[V int32 | int64 | float32 | float64](a, b V) V {
 	if a < b {
 		return a
@@ -24,7 +24,7 @@ func Min[V int32 | int64 | float32 | float64](a, b V) V {
 	return b
 }
 
-// Max
+// Max returns the larger of two values.
 func Max[V int32 | int64 | float32 | float64](a, b V) V {
 	if a > b {
 		return a

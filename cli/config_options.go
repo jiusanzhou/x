@@ -130,16 +130,17 @@ func PreParseConfig() Option {
 		if !cmd.IsRoot() && cmd.configv != nil && cmd.root.configobj != nil {
 			v, ok := cmd.root.configobj.Get(cmd.Name())
 			if ok {
-				// FIXME:
+				// Convert the config value to the target struct via JSON marshaling.
+				// This handles type conversion between map[string]interface{} and the target struct.
 				b, err := json.Marshal(v)
-
-				// ignore error
 				if err != nil {
 					return
 				}
 
-				json.Unmarshal(b, cmd.configv)
-				// re parse flag
+				if err := json.Unmarshal(b, cmd.configv); err != nil {
+					return
+				}
+				// re-parse flags to allow command-line overrides
 				cmd.ParseFlags(os.Args)
 			}
 		}

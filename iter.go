@@ -76,7 +76,7 @@ func (i *Iter) Error() error {
 	return i.err
 }
 
-// NewIter reutrn a new iter
+// NewIter returns a new Iter from a slice.
 func NewIter(items interface{}) *Iter {
 	iter := &Iter{}
 

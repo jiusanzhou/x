@@ -6,6 +6,7 @@ import (
 	"strconv"
 )
 
+// Operator types for label selector matching.
 var (
 	OperatorIn        = OperatorType("In") // default one
 	OperatorNotIn     = OperatorType("NotIn")
@@ -18,10 +19,12 @@ var (
 
 var operatorFactory = SyncMap[OperatorType, OperatorTypeImpl]{}
 
+// RegisterOperator registers a custom operator implementation.
 func RegisterOperator(ot OperatorType, op OperatorTypeImpl) {
 	operatorFactory.Store(ot, op)
 }
 
+// OperatorTypeImpl defines the interface for operator implementations.
 type OperatorTypeImpl interface {
 	Validate(values []string) error
 	Match(val string, values []string) bool
@@ -40,6 +43,7 @@ func (e emptyOperatorImpl) Match(val string, values []string) bool {
 	return e.match(val, values)
 }
 
+// OperatorImplFn creates an OperatorTypeImpl from validate and match functions.
 func OperatorImplFn(validateFn func(values []string) error, matchFn func(val string, values []string) bool) OperatorTypeImpl {
 	return &emptyOperatorImpl{
 		validate: validateFn,
@@ -47,8 +51,10 @@ func OperatorImplFn(validateFn func(values []string) error, matchFn func(val str
 	}
 }
 
+// OperatorType represents an operator for value matching.
 type OperatorType string
 
+// Validate checks if the operator values are valid.
 func (ot OperatorType) Validate(values []string) error {
 	op, ok := operatorFactory.Load(ot)
 	if !ok {
@@ -58,6 +64,7 @@ func (ot OperatorType) Validate(values []string) error {
 	return op.Validate(values)
 }
 
+// Match returns true if val matches the operator condition with values.
 func (ot OperatorType) Match(val string, values []string) bool {
 	op, ok := operatorFactory.Load(ot)
 	if !ok {
@@ -71,7 +78,7 @@ func init() {
 
 	RegisterOperator(OperatorIn, OperatorImplFn(func(values []string) error {
 		if len(values) == 0 {
-			return errors.New("operator In must contians 1 value")
+			return errors.New("operator In must contain at least 1 value")
 		}
 		return nil
 	}, func(val string, values []string) bool {
@@ -84,7 +91,7 @@ func init() {
 
 	RegisterOperator(OperatorNotIn, OperatorImplFn(func(values []string) error {
 		if len(values) == 0 {
-			return errors.New("operator NotIn must contians 1 value")
+			return errors.New("operator NotIn must contain at least 1 value")
 		}
 		return nil
 	}, func(val string, values []string) bool {
@@ -97,7 +104,7 @@ func init() {
 
 	RegisterOperator(OperatorExists, OperatorImplFn(func(values []string) error {
 		if len(values) > 0 {
-			return errors.New("operator Exists can not has values")
+			return errors.New("operator Exists cannot have values")
 		}
 		return nil
 	}, func(val string, values []string) bool {
@@ -107,7 +114,7 @@ func init() {
 
 	RegisterOperator(OperatorNotExists, OperatorImplFn(func(values []string) error {
 		if len(values) > 0 {
-			return errors.New("operator NotExists can not has values")
+			return errors.New("operator NotExists cannot have values")
 		}
 		return nil
 	}, func(val string, values []string) bool {
@@ -117,7 +124,7 @@ func init() {
 
 	RegisterOperator(OperatorGt, OperatorImplFn(func(values []string) error {
 		if len(values) != 1 {
-			return errors.New("operator Gt values should only 1")
+			return errors.New("operator Gt requires exactly 1 value")
 		}
 		// parse string to float64
 		_, err := strconv.ParseFloat(values[0], 64)
@@ -134,7 +141,7 @@ func init() {
 
 	RegisterOperator(OperatorLt, OperatorImplFn(func(values []string) error {
 		if len(values) != 1 {
-			return errors.New("operator Lt values should only 1")
+			return errors.New("operator Lt requires exactly 1 value")
 		}
 		// parse string to float64
 		_, err := strconv.ParseFloat(values[0], 64)
@@ -151,7 +158,7 @@ func init() {
 
 	RegisterOperator(OperatorRange, OperatorImplFn(func(values []string) error {
 		if len(values) != 2 {
-			return errors.New("operator Range values should only 2")
+			return errors.New("operator Range requires exactly 2 values")
 		}
 		var err error
 		// parse string to float64
