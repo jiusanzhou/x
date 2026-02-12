@@ -21,16 +21,18 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 )
 
 var (
-	onlyVersion = false
-	envStoreKey = "X_LDFLAGS"
-	defaultArgs = []string{}
+	onlyVersion   = false
+	envStoreKey   = "X_LDFLAGS"
+	defaultArgs   = []string{}
+	incrementType = ""
+	createTag     = false
 
-	// data
 	gitVersion string
 	gitCommit  string
 	gitState   string
@@ -39,6 +41,8 @@ var (
 func init() {
 	flag.BoolVar(&onlyVersion, "v", onlyVersion, "Print only version tag")
 	flag.StringVar(&envStoreKey, "env-key", envStoreKey, "Env key to store the LDFLAGS")
+	flag.StringVar(&incrementType, "increment", incrementType, "Auto increment version (patch, minor, major, prerelease)")
+	flag.BoolVar(&createTag, "tag", createTag, "Create git tag with new version")
 }
 
 func genLDFlags() string {
@@ -47,7 +51,7 @@ func genLDFlags() string {
 		gitVersion += "-dirty"
 	}
 
-	ldflagsStr := "" // "-s -w"
+	ldflagsStr := ""
 	ldflagsStr += " -X go.zoe.im/x/version.GitVersion=" + gitVersion
 	ldflagsStr += " -X go.zoe.im/x/version.GitCommit=" + gitCommit
 	ldflagsStr += " -X go.zoe.im/x/version.GitTreeState=" + gitState
@@ -55,30 +59,12 @@ func genLDFlags() string {
 	return ldflagsStr
 }
 
-// genReleaseTag Use git describe to find the version based on tags.
 func releaseTag(gitCommit string) string {
 	gv := gitRun("describe", "--tags", "--match", "v*", "--abbrev=14", gitCommit+"^{commit}")
 
 	if gv == "" {
 		return "v0.0.0"
 	}
-
-	// This translates the "git describe" to an actual semver.org
-	// compatible semantic version that looks something like this:
-	//   v1.1.0-alpha.0.6+84c76d1142ea4d
-	// #
-	// TODO: We continue calling this "git version" because so many
-	// downstream consumers are expecting it there.
-	// #
-	// These regexes are painful enough in sed...
-	// We don't want to do them in pure shell, so disable SC2001
-	// shellcheck disable=SC2001
-
-	// We have distance to subversion (v1.1.0-subversion-1-gCommitHash)
-
-	// We have distance to base tag (v1.1.0-1-gCommitHash)
-
-	// replace last - to +
 
 	parts := strings.Split(gv, "-")
 	last := len(parts) - 1
@@ -90,7 +76,6 @@ func releaseTag(gitCommit string) string {
 	return gv
 }
 
-// treeState returns Check if the tree is dirty.  default to dirty
 func treeState() string {
 	if len(gitRun("status", "--porcelain")) == 0 {
 		return "clean"
@@ -98,7 +83,6 @@ func treeState() string {
 	return "dirty"
 }
 
-// commitID returns the abbreviated commit-id hash of the last commit.
 func commitID() string {
 	id := gitRun("rev-parse", "HEAD^{commit}")
 	if id == "" {
@@ -117,19 +101,115 @@ func gitRun(args ...string) string {
 	return strings.TrimSpace(string(s))
 }
 
+func latestTag() string {
+	tag := gitRun("describe", "--tags", "--abbrev=0", "--match", "v*")
+	if tag == "" {
+		return "v0.0.0"
+	}
+	return tag
+}
+
+func parseVersion(v string) (major, minor, patch int64, prerelease, metadata string) {
+	v = strings.TrimPrefix(v, "v")
+
+	if idx := strings.Index(v, "+"); idx >= 0 {
+		metadata = v[idx+1:]
+		v = v[:idx]
+	}
+
+	if idx := strings.Index(v, "-"); idx >= 0 {
+		prerelease = v[idx+1:]
+		v = v[:idx]
+	}
+
+	parts := strings.Split(v, ".")
+	if len(parts) >= 1 {
+		major, _ = strconv.ParseInt(parts[0], 10, 64)
+	}
+	if len(parts) >= 2 {
+		minor, _ = strconv.ParseInt(parts[1], 10, 64)
+	}
+	if len(parts) >= 3 {
+		patch, _ = strconv.ParseInt(parts[2], 10, 64)
+	}
+	return
+}
+
+func incrementVersion(currentTag, incType string) string {
+	major, minor, patch, prerelease, _ := parseVersion(currentTag)
+
+	switch strings.ToLower(incType) {
+	case "major":
+		major++
+		minor = 0
+		patch = 0
+		prerelease = ""
+	case "minor":
+		minor++
+		patch = 0
+		prerelease = ""
+	case "patch":
+		patch++
+		prerelease = ""
+	case "prerelease", "pre":
+		if prerelease == "" {
+			patch++
+			prerelease = "0"
+		} else {
+			parts := strings.Split(prerelease, ".")
+			lastIdx := len(parts) - 1
+			if num, err := strconv.ParseInt(parts[lastIdx], 10, 64); err == nil {
+				parts[lastIdx] = strconv.FormatInt(num+1, 10)
+				prerelease = strings.Join(parts, ".")
+			} else {
+				prerelease = prerelease + ".1"
+			}
+		}
+	default:
+		return currentTag
+	}
+
+	newVersion := fmt.Sprintf("v%d.%d.%d", major, minor, patch)
+	if prerelease != "" {
+		newVersion += "-" + prerelease
+	}
+	return newVersion
+}
+
+func createGitTag(tag string) error {
+	output := gitRun("tag", "-a", tag, "-m", "Release "+tag)
+	if output != "" {
+		return fmt.Errorf("failed to create tag: %s", output)
+	}
+	return nil
+}
+
 func main() {
-	// parse command
 	flag.Parse()
 
-	// add more args for git
-	if len(flag.Args()) > 1 {
-		// set root path
-		defaultArgs = append(defaultArgs, "--work-tree", os.Args[1])
+	if len(flag.Args()) > 0 {
+		defaultArgs = append(defaultArgs, "--work-tree", flag.Args()[0])
 	}
 
 	gitCommit = commitID()
 	gitState = treeState()
-	gitVersion = releaseTag(gitCommit)
+
+	if incrementType != "" {
+		currentTag := latestTag()
+		newVersion := incrementVersion(currentTag, incrementType)
+
+		if createTag && gitState == "clean" {
+			if err := createGitTag(newVersion); err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating tag: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Fprintf(os.Stderr, "Created tag: %s\n", newVersion)
+		}
+
+		gitVersion = newVersion
+	} else {
+		gitVersion = releaseTag(gitCommit)
+	}
 
 	st := genLDFlags()
 
@@ -138,7 +218,6 @@ func main() {
 		return
 	}
 
-	// store ldflags into env
 	os.Setenv(envStoreKey, st)
 	fmt.Println(st)
 }
