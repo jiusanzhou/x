@@ -133,7 +133,7 @@ func (n *node) addStructField(group, prefix string, sf reflect.StructField, val 
 			// add prefix and command
 			// don't merge the prefix with pre prefix
 			if err := n.addStructField(group, prefixn, sff, vall); err != nil {
-				return fmt.Errorf("netest struct field '%s' %s", sff.Name, err)
+				return fmt.Errorf("nested struct field '%s': %w (hint: use `opts:\"-\"` tag to skip complex fields)", sff.Name, err)
 			}
 		}
 		return nil
@@ -208,6 +208,10 @@ func (n *node) addKVField(kv *kv, fName, help, mode, group, prefix string, val r
 	i.mode = mode
 	i.name = name
 	i.help = help
+	// parse enum values for display in help
+	if e, ok := kv.take("enum"); ok {
+		i.enum = strings.Split(e, "|")
+	}
 	// insert either as flag or as argument
 	switch mode {
 	case "flag":

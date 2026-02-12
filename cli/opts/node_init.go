@@ -7,9 +7,13 @@ func (n *node) Parse() ParsedOpts {
 }
 
 func (n *node) Opts() []Opt {
+	if n.err != nil {
+		log.Printf("[ERROR] opts initialization error: %v", n.err)
+		return nil
+	}
 	if !n.loaded {
 		if err := n.load(); err != nil {
-			log.Println("[ERROR] parse opts error:", err)
+			log.Printf("[ERROR] opts parse error: %v", err)
 			return nil
 		}
 	}
