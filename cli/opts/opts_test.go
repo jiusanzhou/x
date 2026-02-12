@@ -233,3 +233,135 @@ func TestUintTypes(t *testing.T) {
 	check(t, c.UintVal, uint(1))
 	check(t, c.Uint8Val, uint8(8))
 }
+
+func TestPositionalArgs(t *testing.T) {
+	type Config struct {
+		Verbose bool   `opts:"short=v"`
+		File    string `opts:"mode=arg"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("-v", "myfile.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Verbose, true)
+	check(t, c.File, "myfile.txt")
+}
+
+func TestPositionalArgsMultiple(t *testing.T) {
+	type Config struct {
+		Source string `opts:"mode=arg"`
+		Dest   string `opts:"mode=arg"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("source.txt", "dest.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Source, "source.txt")
+	check(t, c.Dest, "dest.txt")
+}
+
+func TestPositionalArgsSlice(t *testing.T) {
+	type Config struct {
+		Output string   `opts:"short=o"`
+		Files  []string `opts:"mode=arg"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("-o", "out.txt", "file1.txt", "file2.txt", "file3.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Output, "out.txt")
+	check(t, len(c.Files), 3)
+	check(t, c.Files[0], "file1.txt")
+	check(t, c.Files[1], "file2.txt")
+	check(t, c.Files[2], "file3.txt")
+}
+
+func TestPositionalArgsSliceWithMin(t *testing.T) {
+	type Config struct {
+		Files []string `opts:"mode=arg,min=2"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("file1.txt")
+	if err == nil {
+		t.Fatal("expected error for min constraint violation")
+	}
+}
+
+func TestPositionalArgsSliceWithMax(t *testing.T) {
+	type Config struct {
+		Files []string `opts:"mode=arg,max=2"`
+		Extra string
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("file1.txt", "file2.txt", "file3.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, len(c.Files), 2)
+	check(t, c.Files[0], "file1.txt")
+	check(t, c.Files[1], "file2.txt")
+}
+
+func TestPositionalArgsWithFlags(t *testing.T) {
+	type Config struct {
+		Verbose bool   `opts:"short=v"`
+		Force   bool   `opts:"short=f"`
+		File    string `opts:"mode=arg"`
+		Output  string `opts:"short=o"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("-v", "--force", "-o", "output.txt", "input.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Verbose, true)
+	check(t, c.Force, true)
+	check(t, c.Output, "output.txt")
+	check(t, c.File, "input.txt")
+}
+
+func TestPositionalArgsInt(t *testing.T) {
+	type Config struct {
+		Count int `opts:"mode=arg"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Count, 42)
+}
+
+func TestPositionalArgsMixed(t *testing.T) {
+	type Config struct {
+		Command string   `opts:"mode=arg"`
+		Args    []string `opts:"mode=arg"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("run", "arg1", "arg2", "arg3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Command, "run")
+	check(t, len(c.Args), 3)
+	check(t, c.Args[0], "arg1")
+}

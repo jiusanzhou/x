@@ -24,6 +24,24 @@ func (n *node) Opts() []Opt {
 	return opts
 }
 
+func (n *node) Args() []Opt {
+	if n.err != nil {
+		log.Printf("[ERROR] opts initialization error: %v", n.err)
+		return nil
+	}
+	if !n.loaded {
+		if err := n.load(); err != nil {
+			log.Printf("[ERROR] opts parse error: %v", err)
+			return nil
+		}
+	}
+	args := []Opt{}
+	for _, a := range n.args {
+		args = append(args, a)
+	}
+	return args
+}
+
 func (n *node) flagGroup(name string) *itemGroup {
 	// NOTE: the default group is the empty string
 	// get existing group

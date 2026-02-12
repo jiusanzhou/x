@@ -29,7 +29,7 @@ type Opt interface {
 type Opts interface {
 	Parse() ParsedOpts
 	Opts() []Opt
-	// TODO:
+	Args() []Opt
 }
 
 // ParsedOpts ...

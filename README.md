@@ -26,6 +26,9 @@
 - [UUID Generation](#uuid-generation)
 - [Error Handling](#error-handling)
 - [Backoff/Retry](#backoffretry)
+  - [Retry with Backoff](#retry-with-backoff)
+  - [Backoff Strategies](#backoff-strategies)
+  - [Backoff Middleware](#backoff-middleware)
 - [Rate Limiting](#rate-limiting)
 - [Clock Interface](#clock-interface)
 - [Configuration](#configuration)
@@ -179,6 +182,60 @@ if !errs.IsNil() {
 ```
 
 ## Backoff/Retry
+
+### Retry with Backoff
+
+Execute operations with configurable retry strategies and backoff algorithms.
+
+```go
+ctx := context.Background()
+
+// Basic retry with exponential backoff
+backoff := x.NewExponentialBackoff(100*time.Millisecond, 10*time.Second)
+err := x.Retry(ctx, backoff, func(ctx context.Context) error {
+    if err := doSomething(); err != nil {
+        return x.RetryableError(err) // Mark as retryable
+    }
+    return nil // Success
+})
+
+// Convenience function
+err = x.Exponential(ctx, 100*time.Millisecond, 10*time.Second, func(ctx context.Context) error {
+    return x.RetryableError(db.Ping())
+})
+```
+
+### Backoff Strategies
+
+```go
+// Constant: 1s -> 1s -> 1s -> 1s
+b := x.NewConstantBackoff(1 * time.Second)
+
+// Exponential: 1s -> 2s -> 4s -> 8s -> 10s (capped)
+b = x.NewExponentialBackoff(1*time.Second, 10*time.Second)
+
+// Fibonacci: 1s -> 1s -> 2s -> 3s -> 5s -> 8s -> 10s (capped)
+b = x.NewFibonacciBackoff(1*time.Second, 10*time.Second)
+```
+
+### Backoff Middleware
+
+```go
+// Limit retries
+b := x.WithMaxRetries(5, x.NewExponentialBackoff(100*time.Millisecond, 10*time.Second))
+
+// Cap individual delay
+b = x.WithCappedDuration(5*time.Second, b)
+
+// Limit total retry time
+b = x.WithMaxDuration(30*time.Second, b)
+
+// Add jitter to prevent thundering herd
+b = x.WithJitter(100*time.Millisecond, b)
+b = x.WithJitterPercent(10, b) // +/- 10%
+```
+
+### Legacy Backoff (per-key tracking)
 
 ```go
 backoff := x.NewBackOffWithJitter(100*time.Millisecond, 10*time.Second, 0.5)
