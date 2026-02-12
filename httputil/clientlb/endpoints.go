@@ -52,17 +52,17 @@ func NewSimpleHealthCheck(method string, path string, content string) HealthChec
 
 		defer resp.Body.Close()
 
-		// must check the reult
+		// must check the result
 		if content != "" {
 			data, err := ioutil.ReadAll(resp.Body)
 			if err != nil {
 				return false
 			}
 
-			return bytes.Equal(data, []byte("ok"))
+			return bytes.Equal(data, []byte(content))
 		}
 
 		// let check the http status code
-		return resp.StatusCode > http.StatusOK && resp.StatusCode < http.StatusPartialContent
+		return resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices
 	}
 }

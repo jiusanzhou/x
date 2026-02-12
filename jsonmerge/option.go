@@ -21,7 +21,7 @@ func Overwrite(v bool) Option {
 // OverwriteWithEmptySrc option
 func OverwriteWithEmptySrc(v bool) Option {
 	return func(f *factory) {
-		f.overwrite = v
+		f.overwriteWithEmptySrc = v
 	}
 }
 

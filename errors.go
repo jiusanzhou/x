@@ -16,37 +16,42 @@
 
 package x
 
-// Errors contains multi error
+// Errors aggregates multiple errors into a single error value.
 type Errors []error
 
-// Error implements the error interface
+// Error implements the error interface.
 func (es Errors) Error() string {
+	if len(es) == 0 {
+		return ""
+	}
 	var err string
 	for _, e := range es {
 		err += "; " + e.Error()
 	}
-	return err
+	return err[2:] // trim leading "; "
 }
 
-// IsNil return if contains no error
+// IsNil reports whether the error list is empty.
 func (es Errors) IsNil() bool {
 	return len(es) == 0
 }
 
-// Add ad a new error to errors
-func (es Errors) Add(ex ...error) {
+// Add appends non-nil errors to the error list.
+func (es *Errors) Add(ex ...error) {
 	for _, e := range ex {
 		if e != nil {
-			es = append(es, e)
+			*es = append(*es, e)
 		}
 	}
 }
 
-// NewErrors create errors
+// NewErrors creates a new Errors from the given errors, filtering out nil values.
 func NewErrors(errs ...error) Errors {
 	es := Errors{}
 	for _, e := range errs {
-		es = append(es, e)
+		if e != nil {
+			es = append(es, e)
+		}
 	}
 	return es
 }

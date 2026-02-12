@@ -1,6 +1,6 @@
 package x
 
-// Keys return all keys of map
+// Keys returns all keys of the map as a slice.
 func Keys[K comparable, V any](maps map[K]V) []K {
 	items := []K{}
 	for k := range maps {
@@ -9,7 +9,7 @@ func Keys[K comparable, V any](maps map[K]V) []K {
 	return items
 }
 
-// Values return all values of map
+// Values returns all values of the map as a slice.
 func Values[K comparable, V any](maps map[K]V) []V {
 	items := []V{}
 	for _, v := range maps {
@@ -27,8 +27,8 @@ func Range[K comparable, V any](maps map[K]V, f func(K, V) (shouldContinue bool)
 	}
 }
 
-// UpdateMap update the map and return deleted
-// , IN map[K]V1 | []V1
+// UpdateMap updates the original map with inputs and returns changed and deleted entries.
+// If updateForce is true, existing values are overwritten; otherwise they are kept.
 func UpdateMap[K comparable, V1 any, V2 any](
 	original map[K]V2,
 	inputs []V1,
@@ -41,7 +41,7 @@ func UpdateMap[K comparable, V1 any, V2 any](
 
 	for _, i := range inputs {
 		k := keyFn(i)
-		// udpate if force update or not exits
+		// update if force update or not exists
 		if o, ok := original[k]; ok && !updateForce {
 			changed[k] = o
 		} else {
@@ -50,7 +50,7 @@ func UpdateMap[K comparable, V1 any, V2 any](
 		}
 	}
 
-	// generete items we need to delete
+	// generate items we need to delete
 	for k, v := range original {
 		_, ok := changed[k]
 		if !ok {

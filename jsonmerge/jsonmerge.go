@@ -147,7 +147,7 @@ func (f *factory) deepMerge(dstIn, src reflect.Value, depth int) (dst reflect.Va
 		// merge slice items
 		newSlice := dst
 
-		// if the slice items type is not simple and same lenght
+		// if the slice items type is not simple and same length
 		// length < x
 		if (!isEmptyValue(src) ||
 			f.overwriteWithEmptySrc ||

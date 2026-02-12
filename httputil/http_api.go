@@ -14,7 +14,7 @@ type Field func(r *Response)
 var (
 	// StatusSuccess present this request success
 	StatusSuccess = "success"
-	// StatusFailed repsent this request failed
+	// StatusFailed represents this request failed
 	StatusFailed = "failed"
 )
 
