@@ -14,7 +14,7 @@ import (
 
 // souce is the real data of a config source
 type source struct {
-	// store all type of data from srouce
+	// store all type of data from source
 	obj  map[string]any // with map
 	data []byte         // raw source data
 
