@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -33,6 +34,7 @@ type item struct {
 	min, max  int // valid if slice
 	noarg     bool
 	sets      int
+	enum      []string // valid enum values
 }
 
 func newItem(val reflect.Value) (*item, error) {
@@ -201,6 +203,13 @@ func (i *item) Help() string {
 	// add env key to help
 	s := i.help
 
+	if len(i.enum) > 0 {
+		if s != "" {
+			s += " "
+		}
+		s += "(" + formatEnumValues(i.enum) + ")"
+	}
+
 	if i.FromEnv() {
 		if s != "" {
 			s += ", "
@@ -208,6 +217,19 @@ func (i *item) Help() string {
 		s += fmt.Sprintf("$%s", i.envName) // do we need to display value??? os.Getenv(i.envName)
 	}
 	return s
+}
+
+func formatEnumValues(values []string) string {
+	if len(values) == 0 {
+		return ""
+	}
+	if len(values) == 1 {
+		return values[0]
+	}
+	if len(values) == 2 {
+		return values[0] + " or " + values[1]
+	}
+	return strings.Join(values[:len(values)-1], ", ") + ", or " + values[len(values)-1]
 }
 
 func (i *item) Default() reflect.Value {
