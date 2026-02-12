@@ -61,6 +61,67 @@ func (n *node) parse(args ...string) error {
 		return err
 	}
 
+	// Parse positional arguments from remaining args
+	if err := n.parseArgs(flagset.Args()); err != nil {
+		n.err = err
+		return err
+	}
+
+	return nil
+}
+
+// parseArgs parses positional arguments from the remaining command line args
+func (n *node) parseArgs(remaining []string) error {
+	if len(n.args) == 0 {
+		return nil
+	}
+
+	argIndex := 0
+	for i, item := range n.args {
+		if argIndex >= len(remaining) {
+			// Check if this arg is required (has min constraint for slices, or is not a slice)
+			if item.slice {
+				if item.min > 0 {
+					return fmt.Errorf("arg '%s' requires at least %d value(s)", item.name, item.min)
+				}
+			}
+			// For non-slice args, they are optional if we've run out of values
+			continue
+		}
+
+		if item.slice {
+			// Consume all remaining args for the slice (it must be the last arg)
+			count := 0
+			for argIndex < len(remaining) {
+				if item.max > 0 && count >= item.max {
+					break
+				}
+				if err := item.Set(remaining[argIndex]); err != nil {
+					return fmt.Errorf("arg '%s' invalid value '%s': %w", item.name, remaining[argIndex], err)
+				}
+				argIndex++
+				count++
+			}
+			// Check min constraint
+			if count < item.min {
+				return fmt.Errorf("arg '%s' requires at least %d value(s), got %d", item.name, item.min, count)
+			}
+		} else {
+			// Single value arg
+			if err := item.Set(remaining[argIndex]); err != nil {
+				return fmt.Errorf("arg '%s' invalid value '%s': %w", item.name, remaining[argIndex], err)
+			}
+			argIndex++
+		}
+
+		// If this is the last defined arg and it's not a slice, remaining args are ignored
+		// If it's a slice, we've already consumed what we can
+		if i == len(n.args)-1 && !item.slice && argIndex < len(remaining) {
+			// Extra args exist but we have no more arg definitions
+			// This is not an error - extra args are passed through
+		}
+	}
+
 	return nil
 }
 

@@ -17,8 +17,9 @@ type node struct {
 	envNames   map[string]bool
 	flagsets   []*flag.FlagSet
 
-	loaded bool
-	cmds   map[string]*node
+	loaded   bool
+	cmds     map[string]*node
+	prompter Prompter
 
 	//pretend these are in the user struct :)
 	internalOpts struct {
