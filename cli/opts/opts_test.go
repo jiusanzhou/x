@@ -123,3 +123,113 @@ func testNew(config interface{}) *node {
 	n := o.(*node)
 	return n
 }
+
+func TestEnumTag(t *testing.T) {
+	type Config struct {
+		Format string `opts:"enum=list|table|grid"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("--format", "list")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Format, "list")
+}
+
+func TestEnvTag(t *testing.T) {
+	type Config struct {
+		Host string `opts:"env=TEST_HOST"`
+	}
+	c := &Config{}
+	_ = testNew(c)
+}
+
+func TestNameTag(t *testing.T) {
+	type Config struct {
+		DatabaseURL string `opts:"name=db-url"`
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("--db-url", "postgres://localhost")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.DatabaseURL, "postgres://localhost")
+}
+
+func TestNestedStruct(t *testing.T) {
+	type Database struct {
+		Host string
+		Port int
+	}
+	type Config struct {
+		DB Database
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("--db-host", "localhost", "--db-port", "5432")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.DB.Host, "localhost")
+	check(t, c.DB.Port, 5432)
+}
+
+func TestFloatType(t *testing.T) {
+	type Config struct {
+		Rate float64
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("--rate", "3.14")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Rate != 3.14 {
+		t.Errorf("Rate = %f, want 3.14", c.Rate)
+	}
+}
+
+func TestIntTypes(t *testing.T) {
+	type Config struct {
+		Int8Val  int8
+		Int16Val int16
+		Int32Val int32
+		Int64Val int64
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("--int8-val", "8", "--int16-val", "16", "--int32-val", "32", "--int64-val", "64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.Int8Val, int8(8))
+	check(t, c.Int16Val, int16(16))
+	check(t, c.Int32Val, int32(32))
+	check(t, c.Int64Val, int64(64))
+}
+
+func TestUintTypes(t *testing.T) {
+	type Config struct {
+		UintVal   uint
+		Uint8Val  uint8
+		Uint16Val uint16
+		Uint32Val uint32
+		Uint64Val uint64
+	}
+	c := &Config{}
+	n := testNew(c)
+
+	err := n.parse("--uint-val", "1", "--uint8-val", "8", "--uint16-val", "16", "--uint32-val", "32", "--uint64-val", "64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check(t, c.UintVal, uint(1))
+	check(t, c.Uint8Val, uint8(8))
+}
