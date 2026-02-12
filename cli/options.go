@@ -190,3 +190,52 @@ func SetFlags(setflag func(c *Command)) Option {
 		}
 	}
 }
+
+// RunE returns option to set the main run function with error handling.
+// If the function returns an error, it will be printed to stderr.
+func RunE(fn func(cmd *Command, args ...string) error) Option {
+	return func(c *Command) {
+		c.Command.RunE = func(cmd *cobra.Command, args []string) error {
+			return fn(c, args...)
+		}
+	}
+}
+
+// HelpTemplate sets a custom help template.
+func HelpTemplate(tpl string) Option {
+	return func(c *Command) {
+		c.Command.SetHelpTemplate(tpl)
+	}
+}
+
+// UsageTemplate sets a custom usage template.
+func UsageTemplate(tpl string) Option {
+	return func(c *Command) {
+		c.Command.SetUsageTemplate(tpl)
+	}
+}
+
+// VersionTemplate sets a custom version template.
+func VersionTemplate(tpl string) Option {
+	return func(c *Command) {
+		c.Command.SetVersionTemplate(tpl)
+	}
+}
+
+// HelpFunc sets a custom help function.
+func HelpFunc(fn func(cmd *Command, args []string)) Option {
+	return func(c *Command) {
+		c.Command.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+			fn(c, args)
+		})
+	}
+}
+
+// UsageFunc sets a custom usage function.
+func UsageFunc(fn func(cmd *Command) error) Option {
+	return func(c *Command) {
+		c.Command.SetUsageFunc(func(cmd *cobra.Command) error {
+			return fn(c)
+		})
+	}
+}

@@ -141,3 +141,86 @@ func TestPersistentPreRun(t *testing.T) {
 		t.Error("PersistentPreRun() should set Command.PersistentPreRun")
 	}
 }
+
+func TestRunE(t *testing.T) {
+	cmd := New(
+		Name("testcmd"),
+		RunE(func(cmd *Command, args ...string) error {
+			return nil
+		}),
+	)
+
+	if cmd.Command.RunE == nil {
+		t.Error("RunE() should set Command.RunE")
+	}
+}
+
+func TestHelpTemplate(t *testing.T) {
+	customTpl := "Custom Help: {{.Name}}"
+	cmd := New(
+		Name("testcmd"),
+		HelpTemplate(customTpl),
+	)
+
+	if cmd.Command.HelpTemplate() != customTpl {
+		t.Errorf("HelpTemplate() = %q, want %q", cmd.Command.HelpTemplate(), customTpl)
+	}
+}
+
+func TestUsageTemplate(t *testing.T) {
+	customTpl := "Custom Usage: {{.Name}}"
+	cmd := New(
+		Name("testcmd"),
+		UsageTemplate(customTpl),
+	)
+
+	if cmd.Command.UsageTemplate() != customTpl {
+		t.Errorf("UsageTemplate() = %q, want %q", cmd.Command.UsageTemplate(), customTpl)
+	}
+}
+
+func TestVersionTemplate(t *testing.T) {
+	customTpl := "Version: {{.Version}}"
+	cmd := New(
+		Name("testcmd"),
+		Version("1.0.0"),
+		VersionTemplate(customTpl),
+	)
+
+	if cmd.Command.VersionTemplate() != customTpl {
+		t.Errorf("VersionTemplate() = %q, want %q", cmd.Command.VersionTemplate(), customTpl)
+	}
+}
+
+func TestHelpFunc(t *testing.T) {
+	called := false
+	cmd := New(
+		Name("testcmd"),
+		HelpFunc(func(cmd *Command, args []string) {
+			called = true
+		}),
+	)
+
+	cmd.Command.HelpFunc()(cmd.Command, []string{})
+
+	if !called {
+		t.Error("HelpFunc() callback should be called")
+	}
+}
+
+func TestUsageFunc(t *testing.T) {
+	called := false
+	cmd := New(
+		Name("testcmd"),
+		UsageFunc(func(cmd *Command) error {
+			called = true
+			return nil
+		}),
+	)
+
+	cmd.Command.UsageFunc()(cmd.Command)
+
+	if !called {
+		t.Error("UsageFunc() callback should be called")
+	}
+}
