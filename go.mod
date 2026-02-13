@@ -14,6 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.2.0
 	github.com/spf13/cobra v1.1.3
 	github.com/spf13/pflag v1.0.5
+	golang.org/x/net v0.26.0
 	golang.org/x/text v0.17.0
 	golang.org/x/time v0.8.0
 	google.golang.org/grpc v1.21.1
@@ -46,7 +47,6 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.23.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
