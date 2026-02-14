@@ -4,10 +4,11 @@ package websocket
 import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/factory"
+	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/codec"
+	"go.zoe.im/x/talk/transport"
 )
 
-// Config holds WebSocket transport configuration.
 type Config struct {
 	Addr            string     `json:"addr" yaml:"addr"`
 	Path            string     `json:"path,omitempty" yaml:"path"`
@@ -17,23 +18,19 @@ type Config struct {
 	PongTimeout     x.Duration `json:"pong_timeout,omitempty" yaml:"pong_timeout"`
 }
 
-// ServerConfig extends Config with server-specific settings.
 type ServerConfig struct {
 	Config            `json:",inline" yaml:",inline"`
 	CheckOrigin       bool `json:"check_origin,omitempty" yaml:"check_origin"`
 	EnableCompression bool `json:"enable_compression,omitempty" yaml:"enable_compression"`
 }
 
-// ClientConfig extends Config with client-specific settings.
 type ClientConfig struct {
 	Config           `json:",inline" yaml:",inline"`
 	HandshakeTimeout x.Duration `json:"handshake_timeout,omitempty" yaml:"handshake_timeout"`
 }
 
-// Option configures WebSocket transport creation.
 type Option func(any)
 
-// WithCodec sets the codec for the transport.
 func WithCodec(c codec.Codec) Option {
 	return func(v any) {
 		if s, ok := v.(interface{ SetCodec(codec.Codec) }); ok {
@@ -42,23 +39,18 @@ func WithCodec(c codec.Codec) Option {
 	}
 }
 
-// ServerFactory creates WebSocket server transport implementations.
 var ServerFactory = factory.NewFactory[ServerTransport, Option]()
 
-// ClientFactory creates WebSocket client transport implementations.
 var ClientFactory = factory.NewFactory[ClientTransport, Option]()
 
-// ServerTransport handles WebSocket server operations.
 type ServerTransport interface {
 	SetCodec(codec.Codec)
 }
 
-// ClientTransport handles WebSocket client operations.
 type ClientTransport interface {
 	SetCodec(codec.Codec)
 }
 
-// MessageType represents WebSocket message types.
 type MessageType int
 
 const (
@@ -66,9 +58,51 @@ const (
 	BinaryMessage MessageType = 2
 )
 
-// Message represents a WebSocket message with type information.
 type Message struct {
 	Type    string `json:"type"`
 	Payload []byte `json:"payload"`
 	Error   string `json:"error,omitempty"`
+}
+
+type adaptedServerFactory struct{}
+
+func (f *adaptedServerFactory) Register(typeName string, creator factory.Creator[transport.ServerTransport, transport.TransportOption], alias ...string) error {
+	return nil
+}
+
+func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
+	server, err := ServerFactory.Create(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if full, ok := server.(transport.ServerTransport); ok {
+		return full, nil
+	}
+
+	return nil, talk.NewError(talk.Internal, "WebSocket server does not implement transport.ServerTransport")
+}
+
+type adaptedClientFactory struct{}
+
+func (f *adaptedClientFactory) Register(typeName string, creator factory.Creator[transport.ClientTransport, transport.TransportOption], alias ...string) error {
+	return nil
+}
+
+func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
+	client, err := ClientFactory.Create(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if full, ok := client.(transport.ClientTransport); ok {
+		return full, nil
+	}
+
+	return nil, talk.NewError(talk.Internal, "WebSocket client does not implement transport.ClientTransport")
+}
+
+func init() {
+	transport.ServerFactory.RegisterFamily("websocket", &adaptedServerFactory{})
+	transport.ClientFactory.RegisterFamily("websocket", &adaptedClientFactory{})
 }

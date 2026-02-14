@@ -212,5 +212,9 @@ func (s *sseClientStream) Close() error {
 func init() {
 	thttp.ClientFactory.Register("std", func(cfg x.TypedLazyConfig, opts ...thttp.Option) (thttp.ClientTransport, error) {
 		return NewClient(cfg, opts...)
-	})
+	}, "default")
+
+	talk.RegisterClientTransport("http", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+		return NewClient(cfg)
+	}, "http/std", "http/default")
 }

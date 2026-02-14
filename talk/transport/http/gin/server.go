@@ -291,4 +291,8 @@ func init() {
 	thttp.ServerFactory.Register("gin", func(cfg x.TypedLazyConfig, opts ...thttp.Option) (thttp.ServerTransport, error) {
 		return NewServer(cfg, opts...)
 	})
+
+	talk.RegisterServerTransport("http/gin", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+		return NewServer(cfg)
+	})
 }

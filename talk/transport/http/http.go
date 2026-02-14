@@ -4,10 +4,11 @@ package http
 import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/factory"
+	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/codec"
+	"go.zoe.im/x/talk/transport"
 )
 
-// Config holds HTTP transport configuration.
 type Config struct {
 	Addr           string     `json:"addr" yaml:"addr"`
 	Implementation string     `json:"implementation,omitempty" yaml:"implementation"`
@@ -16,21 +17,17 @@ type Config struct {
 	IdleTimeout    x.Duration `json:"idle_timeout,omitempty" yaml:"idle_timeout"`
 }
 
-// ServerConfig extends Config with server-specific settings.
 type ServerConfig struct {
 	Config `json:",inline" yaml:",inline"`
 }
 
-// ClientConfig extends Config with client-specific settings.
 type ClientConfig struct {
 	Config  `json:",inline" yaml:",inline"`
 	Timeout x.Duration `json:"timeout,omitempty" yaml:"timeout"`
 }
 
-// Option configures HTTP transport creation.
 type Option func(any)
 
-// WithCodec sets the codec for the transport.
 func WithCodec(c codec.Codec) Option {
 	return func(v any) {
 		if s, ok := v.(interface{ SetCodec(codec.Codec) }); ok {
@@ -39,18 +36,57 @@ func WithCodec(c codec.Codec) Option {
 	}
 }
 
-// ServerFactory creates HTTP server transport implementations.
 var ServerFactory = factory.NewFactory[ServerTransport, Option]()
 
-// ClientFactory creates HTTP client transport implementations.
 var ClientFactory = factory.NewFactory[ClientTransport, Option]()
 
-// ServerTransport handles HTTP server operations.
 type ServerTransport interface {
 	SetCodec(codec.Codec)
 }
 
-// ClientTransport handles HTTP client operations.
 type ClientTransport interface {
 	SetCodec(codec.Codec)
+}
+
+type adaptedServerFactory struct{}
+
+func (f *adaptedServerFactory) Register(typeName string, creator factory.Creator[transport.ServerTransport, transport.TransportOption], alias ...string) error {
+	return nil
+}
+
+func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
+	server, err := ServerFactory.Create(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if full, ok := server.(transport.ServerTransport); ok {
+		return full, nil
+	}
+
+	return nil, talk.NewError(talk.Internal, "HTTP server does not implement transport.ServerTransport")
+}
+
+type adaptedClientFactory struct{}
+
+func (f *adaptedClientFactory) Register(typeName string, creator factory.Creator[transport.ClientTransport, transport.TransportOption], alias ...string) error {
+	return nil
+}
+
+func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
+	client, err := ClientFactory.Create(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if full, ok := client.(transport.ClientTransport); ok {
+		return full, nil
+	}
+
+	return nil, talk.NewError(talk.Internal, "HTTP client does not implement transport.ClientTransport")
+}
+
+func init() {
+	transport.ServerFactory.RegisterFamily("http", &adaptedServerFactory{})
+	transport.ClientFactory.RegisterFamily("http", &adaptedClientFactory{})
 }

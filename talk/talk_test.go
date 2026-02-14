@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"testing"
+
+	"go.zoe.im/x"
 )
 
 // mockTransport implements Transport for testing
@@ -567,5 +569,61 @@ func TestChanStream_ContextCancellation(t *testing.T) {
 	err := stream.Send("hello")
 	if err != context.Canceled {
 		t.Errorf("Send after cancel should return context.Canceled, got %v", err)
+	}
+}
+
+func TestNewServerFromConfig(t *testing.T) {
+	RegisterServerTransport("mock", func(cfg x.TypedLazyConfig) (Transport, error) {
+		return &mockTransport{}, nil
+	})
+
+	cfg := x.TypedLazyConfig{Type: "mock"}
+	server, err := NewServerFromConfig(cfg)
+	if err != nil {
+		t.Fatalf("NewServerFromConfig failed: %v", err)
+	}
+
+	if server == nil {
+		t.Fatal("expected server, got nil")
+	}
+
+	if server.transport == nil {
+		t.Error("server transport should be set")
+	}
+}
+
+func TestNewServerFromConfig_UnknownType(t *testing.T) {
+	cfg := x.TypedLazyConfig{Type: "nonexistent-transport"}
+	_, err := NewServerFromConfig(cfg)
+	if err == nil {
+		t.Error("expected error for unknown transport type")
+	}
+}
+
+func TestNewClientFromConfig(t *testing.T) {
+	RegisterClientTransport("mock", func(cfg x.TypedLazyConfig) (Transport, error) {
+		return &mockTransport{}, nil
+	})
+
+	cfg := x.TypedLazyConfig{Type: "mock"}
+	client, err := NewClientFromConfig(cfg)
+	if err != nil {
+		t.Fatalf("NewClientFromConfig failed: %v", err)
+	}
+
+	if client == nil {
+		t.Fatal("expected client, got nil")
+	}
+
+	if client.transport == nil {
+		t.Error("client transport should be set")
+	}
+}
+
+func TestNewClientFromConfig_UnknownType(t *testing.T) {
+	cfg := x.TypedLazyConfig{Type: "nonexistent-transport"}
+	_, err := NewClientFromConfig(cfg)
+	if err == nil {
+		t.Error("expected error for unknown transport type")
 	}
 }

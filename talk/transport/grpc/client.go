@@ -183,6 +183,10 @@ func init() {
 	ClientFactory.Register("default", func(cfg x.TypedLazyConfig, opts ...Option) (ClientTransport, error) {
 		return NewClient(cfg, opts...)
 	})
+
+	talk.RegisterClientTransport("grpc", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+		return NewClient(cfg)
+	})
 }
 
 // ErrorCodeFromGRPC converts a gRPC code to a talk ErrorCode.
