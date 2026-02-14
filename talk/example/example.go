@@ -7,8 +7,8 @@
 // This file contains example code that demonstrates:
 //   - Defining a service interface
 //   - Using reflection-based endpoint extraction
-//   - Creating servers and clients
-//   - Switching between HTTP and WebSocket transports
+//   - Creating servers and clients with NewServerFromConfig/NewClientFromConfig
+//   - Switching between HTTP and WebSocket transports via configuration
 package example
 
 import (
@@ -21,9 +21,9 @@ import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/extract"
-	thttp "go.zoe.im/x/talk/transport/http"
-	"go.zoe.im/x/talk/transport/http/std"
-	"go.zoe.im/x/talk/transport/websocket"
+
+	_ "go.zoe.im/x/talk/transport/http/std"
+	_ "go.zoe.im/x/talk/transport/websocket"
 )
 
 // =============================================================================
@@ -144,33 +144,25 @@ func (s *userServiceImpl) WatchUsers(ctx context.Context) (<-chan *UserEvent, er
 // HTTP Server Example
 // =============================================================================
 
-// ExampleHTTPServer demonstrates creating an HTTP server.
+// ExampleHTTPServer demonstrates creating an HTTP server using NewServerFromConfig.
 func ExampleHTTPServer() {
-	// Create the service implementation
 	userSvc := NewUserService()
 
-	// Extract endpoints using reflection
 	extractor := extract.NewReflectExtractor(extract.WithPathPrefix("/api/v1"))
 	endpoints, err := extractor.Extract(userSvc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Create HTTP transport
 	cfg := x.TypedLazyConfig{
-		Type:   "std",
+		Type:   "http",
 		Config: json.RawMessage(`{"addr": ":8080"}`),
 	}
 
-	transport, err := std.NewServer(cfg)
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extractor))
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Create talk server
-	server := talk.NewServer(transport,
-		talk.WithExtractor(extractor),
-	)
 	server.RegisterEndpoints(endpoints...)
 
 	fmt.Printf("Registered %d endpoints:\n", len(endpoints))
@@ -178,49 +170,33 @@ func ExampleHTTPServer() {
 		fmt.Printf("  %s %s -> %s\n", ep.Method, ep.Path, ep.Name)
 	}
 
-	// Start serving
 	ctx := context.Background()
 	fmt.Println("Server listening on :8080")
 	if err := server.Serve(ctx); err != nil {
 		log.Fatal(err)
 	}
-
-	// Output:
-	// Registered 5 endpoints:
-	//   GET /api/v1/user/{id} -> GetUser
-	//   POST /api/v1/user -> CreateUser
-	//   GET /api/v1/users -> ListUsers
-	//   DELETE /api/v1/user/{id} -> DeleteUser
-	//   GET /api/v1/users/watch -> WatchUsers
-	// Server listening on :8080
 }
 
 // =============================================================================
 // HTTP Client Example
 // =============================================================================
 
-// ExampleHTTPClient demonstrates using an HTTP client.
+// ExampleHTTPClient demonstrates using an HTTP client with NewClientFromConfig.
 func ExampleHTTPClient() {
-	// Create HTTP client transport
 	cfg := x.TypedLazyConfig{
-		Type:   "std",
+		Type:   "http",
 		Config: json.RawMessage(`{"addr": "http://localhost:8080"}`),
 	}
 
-	transport, err := std.NewClient(cfg)
+	client, err := talk.NewClientFromConfig(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Create talk client
-	client := talk.NewClient(transport)
 	defer client.Close()
 
-	// Make a request
 	var user User
 	err = client.Call(context.Background(), "/api/v1/user/user-1", nil, &user)
 	if err != nil {
-		// Handle error - check if it's a talk error
 		if talkErr, ok := talk.IsError(err); ok {
 			fmt.Printf("Talk error: %s (code: %s)\n", talkErr.Message, talkErr.Code)
 		} else {
@@ -229,40 +205,31 @@ func ExampleHTTPClient() {
 	}
 
 	fmt.Printf("Got user: %+v\n", user)
-
-	// Output:
-	// Got user: {ID:user-1 Name:Alice Email:alice@example.com}
 }
 
 // =============================================================================
 // WebSocket Server Example
 // =============================================================================
 
-// ExampleWebSocketServer demonstrates creating a WebSocket server.
+// ExampleWebSocketServer demonstrates creating a WebSocket server using NewServerFromConfig.
 func ExampleWebSocketServer() {
-	// Create the service implementation
 	userSvc := NewUserService()
 
-	// Extract endpoints using reflection
 	extractor := extract.NewReflectExtractor()
 	endpoints, err := extractor.Extract(userSvc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Create WebSocket transport
 	cfg := x.TypedLazyConfig{
-		Type:   "default",
+		Type:   "websocket",
 		Config: json.RawMessage(`{"addr": ":8081", "path": "/ws"}`),
 	}
 
-	transport, err := websocket.NewServer(cfg)
+	server, err := talk.NewServerFromConfig(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Create talk server
-	server := talk.NewServer(transport)
 	server.RegisterEndpoints(endpoints...)
 
 	fmt.Println("WebSocket server listening on :8081/ws")
@@ -270,9 +237,6 @@ func ExampleWebSocketServer() {
 	if err := server.Serve(ctx); err != nil {
 		log.Fatal(err)
 	}
-
-	// Output:
-	// WebSocket server listening on :8081/ws
 }
 
 // =============================================================================
@@ -285,36 +249,21 @@ type TransportConfig struct {
 	Config json.RawMessage `json:"config" yaml:"config"` // Transport-specific config
 }
 
-// CreateServerFromConfig creates a server based on configuration.
+// CreateServerFromConfig creates a server based on configuration using NewServerFromConfig.
 // This allows switching transports without code changes.
 func CreateServerFromConfig(cfg TransportConfig, service any) (*talk.Server, error) {
 	extractor := extract.NewReflectExtractor()
 
-	var transport talk.Transport
-	var err error
-
-	switch cfg.Type {
-	case "http":
-		httpCfg := x.TypedLazyConfig{
-			Type:   "std",
-			Config: cfg.Config,
-		}
-		transport, err = std.NewServer(httpCfg)
-	case "websocket":
-		wsCfg := x.TypedLazyConfig{
-			Type:   "default",
-			Config: cfg.Config,
-		}
-		transport, err = websocket.NewServer(wsCfg)
-	default:
-		return nil, talk.NewError(talk.InvalidArgument, "unsupported transport: "+cfg.Type)
+	talkCfg := x.TypedLazyConfig{
+		Type:   cfg.Type,
+		Config: cfg.Config,
 	}
 
+	server, err := talk.NewServerFromConfig(talkCfg, talk.WithExtractor(extractor))
 	if err != nil {
 		return nil, err
 	}
 
-	server := talk.NewServer(transport, talk.WithExtractor(extractor))
 	if err := server.Register(service); err != nil {
 		return nil, err
 	}
@@ -361,18 +310,15 @@ func ExampleConfigDriven() {
 // ExampleManualEndpoints demonstrates registering endpoints manually.
 func ExampleManualEndpoints() {
 	cfg := x.TypedLazyConfig{
-		Type:   "std",
+		Type:   "http",
 		Config: json.RawMessage(`{"addr": ":8080"}`),
 	}
 
-	transport, err := std.NewServer(cfg)
+	server, err := talk.NewServerFromConfig(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	server := talk.NewServer(transport)
-
-	// Register endpoints manually with full control
 	server.RegisterEndpoints(
 		talk.NewEndpoint("healthz", func(ctx context.Context, req any) (any, error) {
 			return map[string]string{"status": "ok"}, nil
@@ -384,9 +330,6 @@ func ExampleManualEndpoints() {
 	)
 
 	fmt.Printf("Registered %d endpoints manually\n", len(server.Endpoints()))
-
-	// Output:
-	// Registered 2 endpoints manually
 }
 
 // =============================================================================
@@ -481,37 +424,31 @@ func ExampleStreaming() {
 // Using Factory Pattern
 // =============================================================================
 
-// ExampleFactory demonstrates using the transport factory.
+// ExampleFactory demonstrates using NewServerFromConfig for unified transport creation.
 func ExampleFactory() {
-	// HTTP server factory
 	httpCfg := x.TypedLazyConfig{
-		Type:   "std",
+		Type:   "http",
 		Config: json.RawMessage(`{"addr": ":8080"}`),
 	}
 
-	httpServer, err := thttp.ServerFactory.Create(httpCfg)
+	httpServer, err := talk.NewServerFromConfig(httpCfg)
 	if err != nil {
-		log.Printf("HTTP factory error: %v\n", err)
+		log.Printf("HTTP error: %v\n", err)
 	} else {
-		fmt.Printf("Created HTTP server from factory\n")
+		fmt.Printf("Created HTTP server from config\n")
 		_ = httpServer
 	}
 
-	// WebSocket server factory
 	wsCfg := x.TypedLazyConfig{
-		Type:   "default",
+		Type:   "websocket",
 		Config: json.RawMessage(`{"addr": ":8081"}`),
 	}
 
-	wsServer, err := websocket.ServerFactory.Create(wsCfg)
+	wsServer, err := talk.NewServerFromConfig(wsCfg)
 	if err != nil {
-		log.Printf("WebSocket factory error: %v\n", err)
+		log.Printf("WebSocket error: %v\n", err)
 	} else {
-		fmt.Printf("Created WebSocket server from factory\n")
+		fmt.Printf("Created WebSocket server from config\n")
 		_ = wsServer
 	}
-
-	// Output:
-	// Created HTTP server from factory
-	// Created WebSocket server from factory
 }

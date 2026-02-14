@@ -18,7 +18,8 @@ import (
 
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
-	"go.zoe.im/x/talk/transport/websocket"
+
+	_ "go.zoe.im/x/talk/transport/websocket"
 )
 
 // User represents a user entity.
@@ -35,19 +36,16 @@ type CreateUserRequest struct {
 }
 
 func main() {
-	// Create WebSocket client
 	cfg := x.TypedLazyConfig{
-		Type:   "default",
+		Type:   "websocket",
 		Config: json.RawMessage(`{"addr": "localhost:8081", "path": "/ws"}`),
 	}
 
-	client, err := websocket.NewClient(cfg)
+	client, err := talk.NewClientFromConfig(cfg)
 	if err != nil {
 		log.Fatalf("Failed to connect: %v", err)
 	}
 	defer client.Close()
-
-	talkClient := talk.NewClient(client)
 
 	fmt.Println("Connected to WebSocket server at localhost:8081/ws")
 
@@ -60,7 +58,7 @@ func main() {
 
 	var createdUser User
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	err = talkClient.Call(ctx, "CreateUser", createReq, &createdUser)
+	err = client.Call(ctx, "CreateUser", createReq, &createdUser)
 	cancel()
 
 	if err != nil {
@@ -77,7 +75,7 @@ func main() {
 	fmt.Println("\n2. Getting the user...")
 	var fetchedUser User
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	err = talkClient.Call(ctx, "GetUser", createdUser.ID, &fetchedUser)
+	err = client.Call(ctx, "GetUser", createdUser.ID, &fetchedUser)
 	cancel()
 
 	if err != nil {
@@ -94,7 +92,7 @@ func main() {
 	fmt.Println("\n3. Listing all users...")
 	var users []*User
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	err = talkClient.Call(ctx, "ListUsers", nil, &users)
+	err = client.Call(ctx, "ListUsers", nil, &users)
 	cancel()
 
 	if err != nil {
@@ -109,7 +107,7 @@ func main() {
 	// Try to get a non-existent user (to demonstrate error handling)
 	fmt.Println("\n4. Getting non-existent user...")
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	err = talkClient.Call(ctx, "GetUser", "user-999", &fetchedUser)
+	err = client.Call(ctx, "GetUser", "user-999", &fetchedUser)
 	cancel()
 
 	if err != nil {

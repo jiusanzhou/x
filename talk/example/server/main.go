@@ -34,7 +34,8 @@ import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/extract"
-	"go.zoe.im/x/talk/transport/http/std"
+
+	_ "go.zoe.im/x/talk/transport/http/std"
 )
 
 // User represents a user entity.
@@ -133,32 +134,25 @@ func (s *userService) WatchUsers(ctx context.Context) (<-chan *UserEvent, error)
 }
 
 func main() {
-	// Create service
 	svc := newUserService()
 
-	// Extract endpoints using reflection
 	extractor := extract.NewReflectExtractor()
 	endpoints, err := extractor.Extract(svc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Create HTTP transport
 	cfg := x.TypedLazyConfig{
-		Type:   "std",
+		Type:   "http",
 		Config: json.RawMessage(`{"addr": ":8080"}`),
 	}
 
-	transport, err := std.NewServer(cfg)
+	server, err := talk.NewServerFromConfig(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Create server
-	server := talk.NewServer(transport)
 	server.RegisterEndpoints(endpoints...)
 
-	// Print registered endpoints
 	fmt.Println("Registered endpoints:")
 	for _, ep := range endpoints {
 		fmt.Printf("  %s %s -> %s", ep.Method, ep.Path, ep.Name)
@@ -168,7 +162,6 @@ func main() {
 		fmt.Println()
 	}
 
-	// Handle shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -181,7 +174,6 @@ func main() {
 		cancel()
 	}()
 
-	// Start server
 	log.Println("Server listening on :8080")
 	if err := server.Serve(ctx); err != nil && err != context.Canceled {
 		log.Fatal(err)

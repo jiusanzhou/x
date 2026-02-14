@@ -20,7 +20,8 @@ import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/extract"
-	"go.zoe.im/x/talk/transport/websocket"
+
+	_ "go.zoe.im/x/talk/transport/websocket"
 )
 
 // User represents a user entity.
@@ -119,32 +120,25 @@ func (s *userService) WatchUsers(ctx context.Context) (<-chan *UserEvent, error)
 }
 
 func main() {
-	// Create service
 	svc := newUserService()
 
-	// Extract endpoints using reflection
 	extractor := extract.NewReflectExtractor()
 	endpoints, err := extractor.Extract(svc)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Create WebSocket transport
 	cfg := x.TypedLazyConfig{
-		Type:   "default",
+		Type:   "websocket",
 		Config: json.RawMessage(`{"addr": ":8081", "path": "/ws"}`),
 	}
 
-	transport, err := websocket.NewServer(cfg)
+	server, err := talk.NewServerFromConfig(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// Create server
-	server := talk.NewServer(transport)
 	server.RegisterEndpoints(endpoints...)
 
-	// Print registered endpoints
 	fmt.Println("Registered endpoints:")
 	for _, ep := range endpoints {
 		fmt.Printf("  %s -> %s", ep.Name, ep.Path)
@@ -154,7 +148,6 @@ func main() {
 		fmt.Println()
 	}
 
-	// Handle shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -167,7 +160,6 @@ func main() {
 		cancel()
 	}()
 
-	// Start server
 	log.Println("WebSocket server listening on :8081/ws")
 	if err := server.Serve(ctx); err != nil && err != context.Canceled {
 		log.Fatal(err)
