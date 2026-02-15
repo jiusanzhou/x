@@ -452,3 +452,25 @@ func ExampleFactory() {
 		_ = wsServer
 	}
 }
+
+// ExampleRegisterTransport demonstrates registering a custom transport.
+func ExampleRegisterTransport() {
+	talk.RegisterTransport("custom", &talk.TransportCreators{
+		Server: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return nil, fmt.Errorf("custom server not implemented")
+		},
+		Client: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return nil, fmt.Errorf("custom client not implemented")
+		},
+	}, "custom-alias")
+
+	cfg := x.TypedLazyConfig{
+		Type:   "custom",
+		Config: json.RawMessage(`{}`),
+	}
+
+	_, err := talk.NewServerFromConfig(cfg)
+	if err != nil {
+		fmt.Printf("Expected error: %v\n", err)
+	}
+}
