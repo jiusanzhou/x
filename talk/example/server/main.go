@@ -7,18 +7,21 @@
 // Then test with:
 //
 //	# Create a user
-//	curl -X POST http://localhost:8080/user \
+//	curl -X POST http://localhost:8080/api/v1/user \
 //	  -H "Content-Type: application/json" \
 //	  -d '{"name": "Alice", "email": "alice@example.com"}'
 //
 //	# Get the user
-//	curl http://localhost:8080/user/user-1
+//	curl http://localhost:8080/api/v1/user/user-1
 //
 //	# List all users
-//	curl http://localhost:8080/users
+//	curl http://localhost:8080/api/v1/users
 //
 //	# Watch for events (SSE)
-//	curl http://localhost:8080/users/watch
+//	curl http://localhost:8080/api/v1/users/watch
+//
+//	# Swagger UI
+//	open http://localhost:8080/swagger/
 package main
 
 import (
@@ -136,25 +139,31 @@ func (s *userService) WatchUsers(ctx context.Context) (<-chan *UserEvent, error)
 func main() {
 	svc := newUserService()
 
-	extractor := extract.NewReflectExtractor()
-	endpoints, err := extractor.Extract(svc)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	cfg := x.TypedLazyConfig{
-		Type:   "http",
-		Config: json.RawMessage(`{"addr": ":8080"}`),
+		Type: "http",
+		Config: json.RawMessage(`{
+			"addr": ":8080",
+			"swagger": {
+				"enabled": true,
+				"path": "/swagger",
+				"title": "User Service API",
+				"description": "Example API for managing users",
+				"version": "1.0.0"
+			}
+		}`),
 	}
 
-	server, err := talk.NewServerFromConfig(cfg)
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.RegisterEndpoints(endpoints...)
+
+	if err := server.Register(svc, talk.WithPrefix("/api/v1")); err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("Registered endpoints:")
-	for _, ep := range endpoints {
+	for _, ep := range server.Endpoints() {
 		fmt.Printf("  %s %s -> %s", ep.Method, ep.Path, ep.Name)
 		if ep.IsStreaming() {
 			fmt.Printf(" (streaming: %s)", ep.StreamMode.String())
@@ -175,6 +184,7 @@ func main() {
 	}()
 
 	log.Println("Server listening on :8080")
+	log.Println("Swagger UI: http://localhost:8080/swagger/")
 	if err := server.Serve(ctx); err != nil && err != context.Canceled {
 		log.Fatal(err)
 	}
