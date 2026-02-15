@@ -36,9 +36,9 @@ import (
 
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
-	"go.zoe.im/x/talk/extract"
 
-	_ "go.zoe.im/x/talk/transport/http/std"
+	_ "go.zoe.im/x/talk/extract"            // 注册默认 Extractor
+	_ "go.zoe.im/x/talk/transport/http/std" // 注册 HTTP 传输
 )
 
 // User represents a user entity.
@@ -153,12 +153,12 @@ func main() {
 		}`),
 	}
 
-	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+	server, err := talk.NewServerFromConfig(cfg, talk.WithPathPrefix("/api/v1"))
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	if err := server.Register(svc, talk.WithPrefix("/api/v1")); err != nil {
+	if err := server.Register(svc); err != nil {
 		log.Fatal(err)
 	}
 

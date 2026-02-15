@@ -45,7 +45,18 @@ func NewServer(t Transport, opts ...ServerOption) *Server {
 		}
 	}
 
+	if s.extractor == nil {
+		s.extractor = defaultExtractor
+	}
+
 	return s
+}
+
+var defaultExtractor Extractor
+
+// SetDefaultExtractor sets the default extractor for new servers.
+func SetDefaultExtractor(e Extractor) {
+	defaultExtractor = e
 }
 
 // RegisterOption configures service registration.

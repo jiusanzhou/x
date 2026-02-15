@@ -42,8 +42,8 @@ func (s *userServiceImpl) GetUser(ctx context.Context, id string) (*User, error)
 import (
     "go.zoe.im/x"
     "go.zoe.im/x/talk"
-    "go.zoe.im/x/talk/extract"
-    _ "go.zoe.im/x/talk/transport/http/std" // 注册 HTTP 传输
+    _ "go.zoe.im/x/talk/extract"               // 注册默认 Extractor
+    _ "go.zoe.im/x/talk/transport/http/std"    // 注册 HTTP 传输
 )
 
 func main() {
@@ -54,10 +54,7 @@ func main() {
         Type:   "http",
         Config: json.RawMessage(`{"addr": ":8080"}`),
     }
-    server, _ := talk.NewServerFromConfig(cfg, 
-        talk.WithExtractor(extract.NewReflectExtractor()),
-        talk.WithPathPrefix("/api/v1"),
-    )
+    server, _ := talk.NewServerFromConfig(cfg, talk.WithPathPrefix("/api/v1"))
     
     // 注册服务（自动使用默认前缀）
     server.Register(userSvc)
@@ -166,10 +163,7 @@ cfg := x.TypedLazyConfig{
     }`),
 }
 
-server, _ := talk.NewServerFromConfig(cfg, 
-    talk.WithExtractor(extract.NewReflectExtractor()),
-    talk.WithPathPrefix("/api/v1"),
-)
+server, _ := talk.NewServerFromConfig(cfg, talk.WithPathPrefix("/api/v1"))
 server.Register(userSvc)
 server.Serve(ctx)
 
@@ -199,14 +193,13 @@ cfg := x.TypedLazyConfig{
 
 ### 反射提取（推荐）
 
-使用 `Register` 方法自动提取并注册 Endpoint。可以通过 `WithPathPrefix` 设置服务级别默认前缀，或用 `WithPrefix` 覆盖：
+使用 `Register` 方法自动提取并注册 Endpoint。导入 `extract` 包会自动注册 `ReflectExtractor` 作为默认提取器：
 
 ```go
+import _ "go.zoe.im/x/talk/extract"  // 注册默认 Extractor
+
 // 方式一：Server 级别设置默认前缀
-server, _ := talk.NewServerFromConfig(cfg, 
-    talk.WithExtractor(extract.NewReflectExtractor()),
-    talk.WithPathPrefix("/api/v1"),
-)
+server, _ := talk.NewServerFromConfig(cfg, talk.WithPathPrefix("/api/v1"))
 server.Register(&userServiceImpl{})  // 自动使用 /api/v1 前缀
 
 // 方式二：Register 时指定前缀（覆盖默认）
