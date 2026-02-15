@@ -17,6 +17,12 @@ func (f ExtractorFunc) Extract(service any) ([]*talk.Endpoint, error) {
 	return f(service)
 }
 
+// MethodAnnotations returns method annotations for a service.
+// Services can implement this interface to provide custom endpoint configuration.
+type MethodAnnotations interface {
+	TalkAnnotations() map[string]string
+}
+
 // Options configures endpoint extraction.
 type Options struct {
 	PathPrefix    string
@@ -28,6 +34,7 @@ type MethodInfo struct {
 	Path       string
 	HTTPMethod string
 	StreamMode talk.StreamMode
+	Skip       bool
 }
 
 // Option configures extraction.

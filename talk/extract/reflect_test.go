@@ -175,3 +175,60 @@ func TestToKebabCase(t *testing.T) {
 		})
 	}
 }
+
+type annotatedService struct{}
+
+func (s *annotatedService) GetUser(ctx context.Context, id string) (*testUser, error) {
+	return &testUser{ID: id}, nil
+}
+
+func (s *annotatedService) CreateUser(ctx context.Context, req *testUser) (*testUser, error) {
+	return req, nil
+}
+
+func (s *annotatedService) InternalMethod(ctx context.Context) error {
+	return nil
+}
+
+func (s *annotatedService) CustomPath(ctx context.Context) (*testUser, error) {
+	return &testUser{}, nil
+}
+
+func (s *annotatedService) TalkAnnotations() map[string]string {
+	return map[string]string{
+		"InternalMethod": "@talk skip",
+		"CustomPath":     "@talk path=/custom/endpoint method=PUT",
+	}
+}
+
+func TestReflectExtractor_WithAnnotations(t *testing.T) {
+	extractor := NewReflectExtractor()
+	endpoints, err := extractor.Extract(&annotatedService{})
+	if err != nil {
+		t.Fatalf("Extract failed: %v", err)
+	}
+
+	endpointMap := make(map[string]*talk.Endpoint)
+	for _, ep := range endpoints {
+		endpointMap[ep.Name] = ep
+	}
+
+	if _, ok := endpointMap["InternalMethod"]; ok {
+		t.Error("InternalMethod should be skipped")
+	}
+
+	if ep, ok := endpointMap["CustomPath"]; ok {
+		if ep.Path != "/custom/endpoint" {
+			t.Errorf("CustomPath path = %s, want /custom/endpoint", ep.Path)
+		}
+		if ep.Method != "PUT" {
+			t.Errorf("CustomPath method = %s, want PUT", ep.Method)
+		}
+	} else {
+		t.Error("CustomPath endpoint not found")
+	}
+
+	if _, ok := endpointMap["GetUser"]; !ok {
+		t.Error("GetUser should be extracted normally")
+	}
+}

@@ -12,14 +12,16 @@ type Annotation struct {
 	Path       string
 	Method     string
 	StreamMode talk.StreamMode
+	Skip       bool
 	Tags       map[string]string
 }
 
-var annotationRegex = regexp.MustCompile(`@talk\s+(.+)`)
+var annotationRegex = regexp.MustCompile(`@talk\s*(.*)`)
 var kvRegex = regexp.MustCompile(`(\w+)=([^\s]+)`)
 
 // ParseAnnotation extracts @talk annotation from a comment string.
 // Format: @talk path=/users/{id} method=GET tag=value
+// Use @talk skip or @talk ignore to exclude a method from registration.
 func ParseAnnotation(comment string) *Annotation {
 	match := annotationRegex.FindStringSubmatch(comment)
 	if match == nil {
@@ -30,7 +32,14 @@ func ParseAnnotation(comment string) *Annotation {
 		Tags: make(map[string]string),
 	}
 
-	kvMatches := kvRegex.FindAllStringSubmatch(match[1], -1)
+	content := strings.TrimSpace(match[1])
+
+	if content == "skip" || content == "ignore" || content == "-" {
+		ann.Skip = true
+		return ann
+	}
+
+	kvMatches := kvRegex.FindAllStringSubmatch(content, -1)
 	for _, kv := range kvMatches {
 		key := strings.ToLower(kv[1])
 		value := kv[2]
@@ -42,6 +51,8 @@ func ParseAnnotation(comment string) *Annotation {
 			ann.Method = strings.ToUpper(value)
 		case "stream":
 			ann.StreamMode = parseStreamMode(value)
+		case "skip", "ignore":
+			ann.Skip = value == "true" || value == "1"
 		default:
 			ann.Tags[key] = value
 		}

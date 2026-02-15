@@ -36,6 +36,11 @@ func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
 	svcValue := reflect.ValueOf(service)
 	svcType := svcValue.Type()
 
+	var annotations map[string]string
+	if ma, ok := service.(MethodAnnotations); ok {
+		annotations = ma.TalkAnnotations()
+	}
+
 	var endpoints []*talk.Endpoint
 
 	for i := 0; i < svcType.NumMethod(); i++ {
@@ -45,7 +50,17 @@ func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
 			continue
 		}
 
-		endpoint, ok := e.extractMethod(svcValue, method)
+		var ann *Annotation
+		if annotations != nil {
+			if comment, ok := annotations[method.Name]; ok {
+				ann = ParseAnnotation(comment)
+				if ann != nil && ann.Skip {
+					continue
+				}
+			}
+		}
+
+		endpoint, ok := e.extractMethod(svcValue, method, ann)
 		if !ok {
 			continue
 		}
@@ -60,7 +75,7 @@ func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
 	return endpoints, nil
 }
 
-func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.Method) (*talk.Endpoint, bool) {
+func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.Method, ann *Annotation) (*talk.Endpoint, bool) {
 	methodType := method.Type
 
 	// Minimum: receiver, context -> (response, error)
@@ -82,8 +97,22 @@ func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 	httpMethod, path := e.deriveMethodAndPath(name, methodType)
 	streamMode := e.detectStreamMode(methodType)
 
-	// Check for explicit mapping
+	if ann != nil {
+		if ann.Path != "" {
+			path = ann.Path
+		}
+		if ann.Method != "" {
+			httpMethod = ann.Method
+		}
+		if ann.StreamMode != talk.StreamNone {
+			streamMode = ann.StreamMode
+		}
+	}
+
 	if mapping, ok := e.opts.MethodMapping[name]; ok {
+		if mapping.Skip {
+			return nil, false
+		}
 		if mapping.Path != "" {
 			path = mapping.Path
 		}
