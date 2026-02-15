@@ -269,8 +269,4 @@ func init() {
 	thttp.ServerFactory.Register("std", func(cfg x.TypedLazyConfig, opts ...thttp.Option) (thttp.ServerTransport, error) {
 		return NewServer(cfg, opts...)
 	}, "default")
-
-	talk.RegisterServerTransport("http", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewServer(cfg)
-	}, "http/std", "http/default")
 }

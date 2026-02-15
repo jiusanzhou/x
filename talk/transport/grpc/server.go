@@ -253,8 +253,4 @@ func init() {
 	ServerFactory.Register("default", func(cfg x.TypedLazyConfig, opts ...Option) (ServerTransport, error) {
 		return NewServer(cfg, opts...)
 	})
-
-	talk.RegisterServerTransport("grpc", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewServer(cfg)
-	})
 }

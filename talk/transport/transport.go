@@ -3,7 +3,6 @@ package transport
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"go.zoe.im/x"
@@ -27,9 +26,6 @@ type Transport interface {
 
 // TransportOption configures transport creation.
 type TransportOption func(any)
-
-// Factory creates Transport instances from configuration.
-var Factory = factory.NewFactory[Transport, TransportOption]()
 
 // ServerTransport is a transport that only handles server operations.
 type ServerTransport interface {
@@ -62,107 +58,61 @@ type ClientConfig struct {
 	Timeout x.Duration `json:"timeout,omitempty" yaml:"timeout"`
 }
 
-// ServerFactory creates server transport instances from configuration.
-// It supports hierarchical type selection like "http/gin" where:
-// - "http" selects the HTTP transport family
-// - "gin" selects the specific implementation within HTTP
-var ServerFactory = &serverTransportFactory{
-	families: make(map[string]factory.Factory[ServerTransport, TransportOption]),
+// TransportFamily provides both server and client transport creation for a transport type.
+type TransportFamily interface {
+	CreateServer(cfg x.TypedLazyConfig, opts ...TransportOption) (ServerTransport, error)
+	CreateClient(cfg x.TypedLazyConfig, opts ...TransportOption) (ClientTransport, error)
 }
 
-// ClientFactory creates client transport instances from configuration.
-// It supports hierarchical type selection like "http/std".
-var ClientFactory = &clientTransportFactory{
-	families: make(map[string]factory.Factory[ClientTransport, TransportOption]),
-}
+type familyOption struct{}
 
-// serverTransportFactory manages server transport creation with hierarchical type support.
-type serverTransportFactory struct {
-	families map[string]factory.Factory[ServerTransport, TransportOption]
-}
+var familyFactory = factory.NewFactory[TransportFamily, familyOption]()
 
-// RegisterFamily registers a sub-factory for a transport family (e.g., "http", "grpc").
-func (f *serverTransportFactory) RegisterFamily(family string, subFactory factory.Factory[ServerTransport, TransportOption]) {
-	f.families[family] = subFactory
-}
+// Factory provides unified access to transport creation.
+// Use Factory.RegisterFamily to register a transport family (e.g., "http", "grpc", "websocket").
+// Use Factory.CreateServer/CreateClient to create transports.
+var Factory = struct {
+	RegisterFamily func(name string, family TransportFamily, aliases ...string) error
+	CreateServer   func(cfg x.TypedLazyConfig, opts ...TransportOption) (ServerTransport, error)
+	CreateClient   func(cfg x.TypedLazyConfig, opts ...TransportOption) (ClientTransport, error)
+}{
+	RegisterFamily: func(name string, family TransportFamily, aliases ...string) error {
+		return familyFactory.Register(name, func(cfg x.TypedLazyConfig, opts ...familyOption) (TransportFamily, error) {
+			return family, nil
+		}, aliases...)
+	},
+	CreateServer: func(cfg x.TypedLazyConfig, opts ...TransportOption) (ServerTransport, error) {
+		familyName, impl := parseType(cfg.Type)
 
-// Register registers a transport creator directly for simple types (e.g., "grpc", "websocket").
-func (f *serverTransportFactory) Register(typeName string, creator factory.Creator[ServerTransport, TransportOption], alias ...string) error {
-	// Create a simple factory for this type
-	simple := factory.NewFactory[ServerTransport, TransportOption]()
-	if err := simple.Register("default", creator); err != nil {
-		return err
-	}
-	f.families[typeName] = simple
-	for _, a := range alias {
-		f.families[a] = simple
-	}
-	return nil
-}
+		familyCfg := x.TypedLazyConfig{Type: familyName}
+		family, err := familyFactory.Create(familyCfg)
+		if err != nil {
+			return nil, err
+		}
 
-// Create creates a server transport based on configuration.
-// Supports formats:
-// - "http" -> uses HTTP family with default implementation
-// - "http/gin" -> uses HTTP family with "gin" implementation
-// - "grpc" -> uses gRPC transport
-// - "websocket" -> uses WebSocket transport
-func (f *serverTransportFactory) Create(cfg x.TypedLazyConfig, opts ...TransportOption) (ServerTransport, error) {
-	family, impl := parseType(cfg.Type)
+		subCfg := x.TypedLazyConfig{
+			Name:   cfg.Name,
+			Type:   impl,
+			Config: cfg.Config,
+		}
+		return family.CreateServer(subCfg, opts...)
+	},
+	CreateClient: func(cfg x.TypedLazyConfig, opts ...TransportOption) (ClientTransport, error) {
+		familyName, impl := parseType(cfg.Type)
 
-	subFactory, ok := f.families[family]
-	if !ok {
-		return nil, fmt.Errorf("unknown transport family: %s", family)
-	}
+		familyCfg := x.TypedLazyConfig{Type: familyName}
+		family, err := familyFactory.Create(familyCfg)
+		if err != nil {
+			return nil, err
+		}
 
-	// Create a new config with the implementation type
-	subCfg := x.TypedLazyConfig{
-		Name:   cfg.Name,
-		Type:   impl,
-		Config: cfg.Config,
-	}
-
-	return subFactory.Create(subCfg, opts...)
-}
-
-// clientTransportFactory manages client transport creation with hierarchical type support.
-type clientTransportFactory struct {
-	families map[string]factory.Factory[ClientTransport, TransportOption]
-}
-
-// RegisterFamily registers a sub-factory for a transport family.
-func (f *clientTransportFactory) RegisterFamily(family string, subFactory factory.Factory[ClientTransport, TransportOption]) {
-	f.families[family] = subFactory
-}
-
-// Register registers a transport creator directly for simple types.
-func (f *clientTransportFactory) Register(typeName string, creator factory.Creator[ClientTransport, TransportOption], alias ...string) error {
-	simple := factory.NewFactory[ClientTransport, TransportOption]()
-	if err := simple.Register("default", creator); err != nil {
-		return err
-	}
-	f.families[typeName] = simple
-	for _, a := range alias {
-		f.families[a] = simple
-	}
-	return nil
-}
-
-// Create creates a client transport based on configuration.
-func (f *clientTransportFactory) Create(cfg x.TypedLazyConfig, opts ...TransportOption) (ClientTransport, error) {
-	family, impl := parseType(cfg.Type)
-
-	subFactory, ok := f.families[family]
-	if !ok {
-		return nil, fmt.Errorf("unknown transport family: %s", family)
-	}
-
-	subCfg := x.TypedLazyConfig{
-		Name:   cfg.Name,
-		Type:   impl,
-		Config: cfg.Config,
-	}
-
-	return subFactory.Create(subCfg, opts...)
+		subCfg := x.TypedLazyConfig{
+			Name:   cfg.Name,
+			Type:   impl,
+			Config: cfg.Config,
+		}
+		return family.CreateClient(subCfg, opts...)
+	},
 }
 
 // parseType parses a type string like "http/gin" into family and implementation.
@@ -173,9 +123,4 @@ func parseType(t string) (family, impl string) {
 		return parts[0], "default"
 	}
 	return parts[0], parts[1]
-}
-
-// Get returns a transport by name using the provided config.
-func Get(name string, cfg x.TypedLazyConfig) (Transport, error) {
-	return Factory.Create(cfg)
 }

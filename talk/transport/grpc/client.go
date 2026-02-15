@@ -184,8 +184,13 @@ func init() {
 		return NewClient(cfg, opts...)
 	})
 
-	talk.RegisterClientTransport("grpc", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewClient(cfg)
+	talk.RegisterTransport("grpc", &talk.TransportCreators{
+		Server: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewServer(cfg)
+		},
+		Client: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewClient(cfg)
+		},
 	})
 }
 

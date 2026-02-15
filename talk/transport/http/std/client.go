@@ -214,7 +214,12 @@ func init() {
 		return NewClient(cfg, opts...)
 	}, "default")
 
-	talk.RegisterClientTransport("http", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewClient(cfg)
+	talk.RegisterTransport("http", &talk.TransportCreators{
+		Server: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewServer(cfg)
+		},
+		Client: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewClient(cfg)
+		},
 	}, "http/std", "http/default")
 }

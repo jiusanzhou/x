@@ -223,8 +223,13 @@ func init() {
 		return NewClient(cfg, opts...)
 	})
 
-	talk.RegisterClientTransport("websocket", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewClient(cfg)
+	talk.RegisterTransport("websocket", &talk.TransportCreators{
+		Server: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewServer(cfg)
+		},
+		Client: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewClient(cfg)
+		},
 	}, "ws")
 }
 

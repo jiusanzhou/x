@@ -64,13 +64,9 @@ type ClientTransport interface {
 	SetCodec(codec.Codec)
 }
 
-type adaptedServerFactory struct{}
+type httpTransportFamily struct{}
 
-func (f *adaptedServerFactory) Register(typeName string, creator factory.Creator[transport.ServerTransport, transport.TransportOption], alias ...string) error {
-	return nil
-}
-
-func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
+func (f *httpTransportFamily) CreateServer(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
 	server, err := serverFactory.Create(cfg)
 	if err != nil {
 		return nil, err
@@ -83,13 +79,7 @@ func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.T
 	return nil, talk.NewError(talk.Internal, "HTTP server does not implement transport.ServerTransport")
 }
 
-type adaptedClientFactory struct{}
-
-func (f *adaptedClientFactory) Register(typeName string, creator factory.Creator[transport.ClientTransport, transport.TransportOption], alias ...string) error {
-	return nil
-}
-
-func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
+func (f *httpTransportFamily) CreateClient(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
 	client, err := clientFactory.Create(cfg)
 	if err != nil {
 		return nil, err
@@ -103,6 +93,5 @@ func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.T
 }
 
 func init() {
-	transport.ServerFactory.RegisterFamily("http", &adaptedServerFactory{})
-	transport.ClientFactory.RegisterFamily("http", &adaptedClientFactory{})
+	transport.Factory.RegisterFamily("http", &httpTransportFamily{})
 }

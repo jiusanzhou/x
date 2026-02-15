@@ -247,10 +247,6 @@ func init() {
 	ServerFactory.Register("default", func(cfg x.TypedLazyConfig, opts ...Option) (ServerTransport, error) {
 		return NewServer(cfg, opts...)
 	})
-
-	talk.RegisterServerTransport("websocket", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewServer(cfg)
-	}, "ws")
 }
 
 var _ = time.Second

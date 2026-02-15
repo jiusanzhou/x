@@ -80,13 +80,9 @@ type Message struct {
 	Error   string `json:"error,omitempty"`
 }
 
-type adaptedServerFactory struct{}
+type wsTransportFamily struct{}
 
-func (f *adaptedServerFactory) Register(typeName string, creator factory.Creator[transport.ServerTransport, transport.TransportOption], alias ...string) error {
-	return nil
-}
-
-func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
+func (f *wsTransportFamily) CreateServer(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
 	server, err := serverFactory.Create(cfg)
 	if err != nil {
 		return nil, err
@@ -99,13 +95,7 @@ func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.T
 	return nil, talk.NewError(talk.Internal, "WebSocket server does not implement transport.ServerTransport")
 }
 
-type adaptedClientFactory struct{}
-
-func (f *adaptedClientFactory) Register(typeName string, creator factory.Creator[transport.ClientTransport, transport.TransportOption], alias ...string) error {
-	return nil
-}
-
-func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
+func (f *wsTransportFamily) CreateClient(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
 	client, err := clientFactory.Create(cfg)
 	if err != nil {
 		return nil, err
@@ -119,6 +109,5 @@ func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.T
 }
 
 func init() {
-	transport.ServerFactory.RegisterFamily("websocket", &adaptedServerFactory{})
-	transport.ClientFactory.RegisterFamily("websocket", &adaptedClientFactory{})
+	transport.Factory.RegisterFamily("websocket", &wsTransportFamily{}, "ws")
 }

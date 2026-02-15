@@ -292,7 +292,9 @@ func init() {
 		return NewServer(cfg, opts...)
 	})
 
-	talk.RegisterServerTransport("http/gin", func(cfg x.TypedLazyConfig) (talk.Transport, error) {
-		return NewServer(cfg)
+	talk.RegisterTransport("http/gin", &talk.TransportCreators{
+		Server: func(cfg x.TypedLazyConfig) (talk.Transport, error) {
+			return NewServer(cfg)
+		},
 	})
 }

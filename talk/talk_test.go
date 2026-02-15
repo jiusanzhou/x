@@ -573,11 +573,13 @@ func TestChanStream_ContextCancellation(t *testing.T) {
 }
 
 func TestNewServerFromConfig(t *testing.T) {
-	RegisterServerTransport("mock", func(cfg x.TypedLazyConfig) (Transport, error) {
-		return &mockTransport{}, nil
+	RegisterTransport("mock-server", &TransportCreators{
+		Server: func(cfg x.TypedLazyConfig) (Transport, error) {
+			return &mockTransport{}, nil
+		},
 	})
 
-	cfg := x.TypedLazyConfig{Type: "mock"}
+	cfg := x.TypedLazyConfig{Type: "mock-server"}
 	server, err := NewServerFromConfig(cfg)
 	if err != nil {
 		t.Fatalf("NewServerFromConfig failed: %v", err)
@@ -601,11 +603,13 @@ func TestNewServerFromConfig_UnknownType(t *testing.T) {
 }
 
 func TestNewClientFromConfig(t *testing.T) {
-	RegisterClientTransport("mock", func(cfg x.TypedLazyConfig) (Transport, error) {
-		return &mockTransport{}, nil
+	RegisterTransport("mock-client", &TransportCreators{
+		Client: func(cfg x.TypedLazyConfig) (Transport, error) {
+			return &mockTransport{}, nil
+		},
 	})
 
-	cfg := x.TypedLazyConfig{Type: "mock"}
+	cfg := x.TypedLazyConfig{Type: "mock-client"}
 	client, err := NewClientFromConfig(cfg)
 	if err != nil {
 		t.Fatalf("NewClientFromConfig failed: %v", err)

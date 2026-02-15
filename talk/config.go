@@ -2,51 +2,40 @@ package talk
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
 	"go.zoe.im/x"
 )
 
-type ServerTransportCreator func(cfg x.TypedLazyConfig) (Transport, error)
-
-type ClientTransportCreator func(cfg x.TypedLazyConfig) (Transport, error)
-
-var (
-	serverCreators   = make(map[string]ServerTransportCreator)
-	serverCreatorsMu sync.RWMutex
-	clientCreators   = make(map[string]ClientTransportCreator)
-	clientCreatorsMu sync.RWMutex
-)
-
-func RegisterServerTransport(name string, creator ServerTransportCreator, aliases ...string) {
-	serverCreatorsMu.Lock()
-	defer serverCreatorsMu.Unlock()
-	serverCreators[name] = creator
-	for _, alias := range aliases {
-		serverCreators[alias] = creator
-	}
+type TransportCreators struct {
+	Server func(cfg x.TypedLazyConfig) (Transport, error)
+	Client func(cfg x.TypedLazyConfig) (Transport, error)
 }
 
-func RegisterClientTransport(name string, creator ClientTransportCreator, aliases ...string) {
-	clientCreatorsMu.Lock()
-	defer clientCreatorsMu.Unlock()
-	clientCreators[name] = creator
+var (
+	transportCreators   = make(map[string]*TransportCreators)
+	transportCreatorsMu sync.RWMutex
+)
+
+func RegisterTransport(name string, creators *TransportCreators, aliases ...string) {
+	transportCreatorsMu.Lock()
+	defer transportCreatorsMu.Unlock()
+	transportCreators[name] = creators
 	for _, alias := range aliases {
-		clientCreators[alias] = creator
+		transportCreators[alias] = creators
 	}
 }
 
 func NewServerFromConfig(cfg x.TypedLazyConfig, opts ...ServerOption) (*Server, error) {
-	serverCreatorsMu.RLock()
-	creator, ok := serverCreators[cfg.Type]
-	serverCreatorsMu.RUnlock()
+	transportCreatorsMu.RLock()
+	creators, ok := transportCreators[cfg.Type]
+	transportCreatorsMu.RUnlock()
 
-	if !ok {
+	if !ok || creators.Server == nil {
 		return nil, fmt.Errorf("unknown server transport type: %s", cfg.Type)
 	}
 
-	transport, err := creator(cfg)
+	transport, err := creators.Server(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -55,28 +44,18 @@ func NewServerFromConfig(cfg x.TypedLazyConfig, opts ...ServerOption) (*Server, 
 }
 
 func NewClientFromConfig(cfg x.TypedLazyConfig, opts ...ClientOption) (*Client, error) {
-	clientCreatorsMu.RLock()
-	creator, ok := clientCreators[cfg.Type]
-	clientCreatorsMu.RUnlock()
+	transportCreatorsMu.RLock()
+	creators, ok := transportCreators[cfg.Type]
+	transportCreatorsMu.RUnlock()
 
-	if !ok {
+	if !ok || creators.Client == nil {
 		return nil, fmt.Errorf("unknown client transport type: %s", cfg.Type)
 	}
 
-	transport, err := creator(cfg)
+	transport, err := creators.Client(cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	return NewClient(transport, opts...), nil
 }
-
-func parseTransportType(t string) (family, impl string) {
-	parts := strings.SplitN(t, "/", 2)
-	if len(parts) == 1 {
-		return parts[0], "default"
-	}
-	return parts[0], parts[1]
-}
-
-var _ = parseTransportType
