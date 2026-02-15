@@ -57,7 +57,7 @@ func main() {
     server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
     
     // 注册服务，带 API 前缀
-    server.Register(userSvc, "/api/v1")
+    server.Register(userSvc, talk.WithPrefix("/api/v1"))
 
     // 启动
     ctx := context.Background()
@@ -164,7 +164,7 @@ cfg := x.TypedLazyConfig{
 }
 
 server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
-server.Register(userSvc, "/api/v1")
+server.Register(userSvc, talk.WithPrefix("/api/v1"))
 server.Serve(ctx)
 
 // Swagger UI: http://localhost:8080/swagger/
@@ -193,13 +193,13 @@ cfg := x.TypedLazyConfig{
 
 ### 反射提取（推荐）
 
-使用 `Register` 方法自动提取并注册 Endpoint，可选路径前缀：
+使用 `Register` 方法自动提取并注册 Endpoint，使用 `WithPrefix` 选项添加路径前缀：
 
 ```go
 server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
 
 // 注册服务，带 API 前缀
-server.Register(&userServiceImpl{}, "/api/v1")
+server.Register(&userServiceImpl{}, talk.WithPrefix("/api/v1"))
 
 // 或不带前缀
 server.Register(&otherServiceImpl{})
