@@ -36,9 +36,25 @@ func WithCodec(c codec.Codec) Option {
 	}
 }
 
-var ServerFactory = factory.NewFactory[ServerTransport, Option]()
+var serverFactory = factory.NewFactory[ServerTransport, Option]()
 
-var ClientFactory = factory.NewFactory[ClientTransport, Option]()
+var ServerFactory = struct {
+	Create   func(cfg x.TypedLazyConfig, opts ...Option) (ServerTransport, error)
+	Register func(typeName string, creator factory.Creator[ServerTransport, Option], alias ...string) error
+}{
+	Create:   serverFactory.Create,
+	Register: serverFactory.Register,
+}
+
+var clientFactory = factory.NewFactory[ClientTransport, Option]()
+
+var ClientFactory = struct {
+	Create   func(cfg x.TypedLazyConfig, opts ...Option) (ClientTransport, error)
+	Register func(typeName string, creator factory.Creator[ClientTransport, Option], alias ...string) error
+}{
+	Create:   clientFactory.Create,
+	Register: clientFactory.Register,
+}
 
 type ServerTransport interface {
 	SetCodec(codec.Codec)
@@ -55,7 +71,7 @@ func (f *adaptedServerFactory) Register(typeName string, creator factory.Creator
 }
 
 func (f *adaptedServerFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ServerTransport, error) {
-	server, err := ServerFactory.Create(cfg)
+	server, err := serverFactory.Create(cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +90,7 @@ func (f *adaptedClientFactory) Register(typeName string, creator factory.Creator
 }
 
 func (f *adaptedClientFactory) Create(cfg x.TypedLazyConfig, opts ...transport.TransportOption) (transport.ClientTransport, error) {
-	client, err := ClientFactory.Create(cfg)
+	client, err := clientFactory.Create(cfg)
 	if err != nil {
 		return nil, err
 	}
