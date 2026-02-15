@@ -127,22 +127,24 @@ func TestServer_Register_WithExtractor(t *testing.T) {
 	}
 }
 
-func TestServer_Register_WithoutExtractor(t *testing.T) {
+func TestServer_Register_WithDefaultExtractor(t *testing.T) {
 	server := NewServer(&mockTransport{})
 
-	err := server.Register(struct{}{})
-	if err == nil {
-		t.Error("expected error when no extractor configured")
+	svc := &testService{}
+	err := server.Register(svc)
+	if err != nil {
+		t.Fatalf("Register failed: %v", err)
 	}
 
-	talkErr, ok := err.(*Error)
-	if !ok {
-		t.Errorf("expected *Error, got %T", err)
+	if len(server.Endpoints()) == 0 {
+		t.Error("expected endpoints to be registered with default extractor")
 	}
+}
 
-	if talkErr.Code != FailedPrecondition {
-		t.Errorf("expected FailedPrecondition, got %v", talkErr.Code)
-	}
+type testService struct{}
+
+func (s *testService) GetUser(ctx context.Context, id string) (string, error) {
+	return id, nil
 }
 
 func TestServer_Serve(t *testing.T) {
