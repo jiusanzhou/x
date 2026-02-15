@@ -25,10 +25,11 @@ type Extractor interface {
 
 // Server handles incoming requests and routes them to registered endpoints.
 type Server struct {
-	transport Transport
-	codec     codec.Codec
-	extractor Extractor
-	endpoints []*Endpoint
+	transport  Transport
+	codec      codec.Codec
+	extractor  Extractor
+	pathPrefix string
+	endpoints  []*Endpoint
 }
 
 // NewServer creates a new server with the given transport.
@@ -62,13 +63,15 @@ func WithPrefix(prefix string) RegisterOption {
 }
 
 // Register extracts endpoints from a service implementation and registers them.
-// Use WithPrefix("/api/v1") to add a path prefix to all endpoints.
+// Use WithPrefix("/api/v1") to override the server's default path prefix.
 func (s *Server) Register(service any, opts ...RegisterOption) error {
 	if s.extractor == nil {
 		return NewError(FailedPrecondition, "no extractor configured")
 	}
 
-	cfg := &registerConfig{}
+	cfg := &registerConfig{
+		pathPrefix: s.pathPrefix,
+	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -181,6 +184,13 @@ func WithServerCodecName(name string) ServerOption {
 func WithExtractor(e Extractor) ServerOption {
 	return func(s *Server) {
 		s.extractor = e
+	}
+}
+
+// WithPathPrefix sets a default path prefix for all registered endpoints.
+func WithPathPrefix(prefix string) ServerOption {
+	return func(s *Server) {
+		s.pathPrefix = prefix
 	}
 }
 
