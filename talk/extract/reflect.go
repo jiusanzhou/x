@@ -14,6 +14,10 @@ var (
 	errorType   = reflect.TypeOf((*error)(nil)).Elem()
 )
 
+func init() {
+	talk.SetDefaultExtractor(NewReflectExtractor())
+}
+
 // ReflectExtractor extracts endpoints from a service using reflection.
 type ReflectExtractor struct {
 	opts Options
