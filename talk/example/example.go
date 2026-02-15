@@ -474,3 +474,47 @@ func ExampleRegisterTransport() {
 		fmt.Printf("Expected error: %v\n", err)
 	}
 }
+
+// =============================================================================
+// Swagger Documentation Example
+// =============================================================================
+
+// ExampleSwagger demonstrates enabling Swagger documentation for HTTP servers.
+func ExampleSwagger() {
+	userSvc := NewUserService()
+
+	extractor := extract.NewReflectExtractor(extract.WithPathPrefix("/api/v1"))
+	endpoints, err := extractor.Extract(userSvc)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cfg := x.TypedLazyConfig{
+		Type: "http",
+		Config: json.RawMessage(`{
+			"addr": ":8080",
+			"swagger": {
+				"enabled": true,
+				"path": "/swagger",
+				"title": "User Service API",
+				"description": "API for managing users",
+				"version": "1.0.0"
+			}
+		}`),
+	}
+
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extractor))
+	if err != nil {
+		log.Fatal(err)
+	}
+	server.RegisterEndpoints(endpoints...)
+
+	fmt.Printf("Registered %d endpoints\n", len(endpoints))
+	fmt.Println("Swagger UI available at: http://localhost:8080/swagger/")
+	fmt.Println("OpenAPI spec available at: http://localhost:8080/swagger/openapi.json")
+
+	ctx := context.Background()
+	if err := server.Serve(ctx); err != nil {
+		log.Fatal(err)
+	}
+}

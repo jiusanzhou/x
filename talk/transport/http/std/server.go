@@ -13,19 +13,19 @@ import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/codec"
+	"go.zoe.im/x/talk/swagger"
 	thttp "go.zoe.im/x/talk/transport/http"
 )
 
-// Server implements talk.Transport using net/http.
 type Server struct {
-	config    thttp.ServerConfig
-	codec     codec.Codec
-	server    *http.Server
-	mux       *http.ServeMux
-	endpoints []*talk.Endpoint
+	config         thttp.ServerConfig
+	codec          codec.Codec
+	server         *http.Server
+	mux            *http.ServeMux
+	endpoints      []*talk.Endpoint
+	swaggerHandler *swagger.Handler
 }
 
-// NewServer creates a new HTTP server transport.
 func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 	s := &Server{
 		mux: http.NewServeMux(),
@@ -41,6 +41,23 @@ func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 
 	if s.codec == nil {
 		s.codec = codec.MustGet("json")
+	}
+
+	if s.config.Swagger.Enabled {
+		swaggerCfg := s.config.Swagger
+		if swaggerCfg.Path == "" {
+			swaggerCfg.Path = "/swagger"
+		}
+		if swaggerCfg.Title == "" {
+			swaggerCfg.Title = "API Documentation"
+		}
+		if swaggerCfg.Version == "" {
+			swaggerCfg.Version = "1.0.0"
+		}
+		if swaggerCfg.Host == "" {
+			swaggerCfg.Host = s.config.Addr
+		}
+		s.swaggerHandler = swagger.NewHandler(swaggerCfg)
 	}
 
 	return s, nil
@@ -59,6 +76,11 @@ func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
 
 	for _, ep := range endpoints {
 		s.registerEndpoint(ep)
+	}
+
+	if s.swaggerHandler != nil {
+		s.swaggerHandler.SetEndpoints(endpoints)
+		s.mux.Handle(s.swaggerHandler.BasePath()+"/", s.swaggerHandler)
 	}
 
 	s.server = &http.Server{

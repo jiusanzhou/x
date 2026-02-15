@@ -6,15 +6,17 @@ import (
 	"go.zoe.im/x/factory"
 	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/codec"
+	"go.zoe.im/x/talk/swagger"
 	"go.zoe.im/x/talk/transport"
 )
 
 type Config struct {
-	Addr           string     `json:"addr" yaml:"addr"`
-	Implementation string     `json:"implementation,omitempty" yaml:"implementation"`
-	ReadTimeout    x.Duration `json:"read_timeout,omitempty" yaml:"read_timeout"`
-	WriteTimeout   x.Duration `json:"write_timeout,omitempty" yaml:"write_timeout"`
-	IdleTimeout    x.Duration `json:"idle_timeout,omitempty" yaml:"idle_timeout"`
+	Addr           string         `json:"addr" yaml:"addr"`
+	Implementation string         `json:"implementation,omitempty" yaml:"implementation"`
+	ReadTimeout    x.Duration     `json:"read_timeout,omitempty" yaml:"read_timeout"`
+	WriteTimeout   x.Duration     `json:"write_timeout,omitempty" yaml:"write_timeout"`
+	IdleTimeout    x.Duration     `json:"idle_timeout,omitempty" yaml:"idle_timeout"`
+	Swagger        swagger.Config `json:"swagger,omitempty" yaml:"swagger"`
 }
 
 type ServerConfig struct {

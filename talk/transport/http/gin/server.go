@@ -14,19 +14,19 @@ import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
 	"go.zoe.im/x/talk/codec"
+	"go.zoe.im/x/talk/swagger"
 	thttp "go.zoe.im/x/talk/transport/http"
 )
 
-// Server implements talk.Transport using Gin.
 type Server struct {
-	config    thttp.ServerConfig
-	codec     codec.Codec
-	server    *http.Server
-	engine    *gin.Engine
-	endpoints []*talk.Endpoint
+	config         thttp.ServerConfig
+	codec          codec.Codec
+	server         *http.Server
+	engine         *gin.Engine
+	endpoints      []*talk.Endpoint
+	swaggerHandler *swagger.Handler
 }
 
-// NewServer creates a new Gin HTTP server transport.
 func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 	s := &Server{}
 
@@ -42,35 +42,52 @@ func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 		s.codec = codec.MustGet("json")
 	}
 
-	// Set Gin to release mode by default
 	gin.SetMode(gin.ReleaseMode)
 	s.engine = gin.New()
 	s.engine.Use(gin.Recovery())
 
+	if s.config.Swagger.Enabled {
+		swaggerCfg := s.config.Swagger
+		if swaggerCfg.Path == "" {
+			swaggerCfg.Path = "/swagger"
+		}
+		if swaggerCfg.Title == "" {
+			swaggerCfg.Title = "API Documentation"
+		}
+		if swaggerCfg.Version == "" {
+			swaggerCfg.Version = "1.0.0"
+		}
+		if swaggerCfg.Host == "" {
+			swaggerCfg.Host = s.config.Addr
+		}
+		s.swaggerHandler = swagger.NewHandler(swaggerCfg)
+	}
+
 	return s, nil
 }
 
-// SetCodec sets the codec for the server.
 func (s *Server) SetCodec(c codec.Codec) {
 	s.codec = c
 }
 
-// Engine returns the underlying Gin engine for adding custom middleware.
 func (s *Server) Engine() *gin.Engine {
 	return s.engine
 }
 
-// String returns the transport name.
 func (s *Server) String() string {
 	return "http/gin"
 }
 
-// Serve starts the server and blocks until context is cancelled.
 func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
 	s.endpoints = endpoints
 
 	for _, ep := range endpoints {
 		s.registerEndpoint(ep)
+	}
+
+	if s.swaggerHandler != nil {
+		s.swaggerHandler.SetEndpoints(endpoints)
+		s.engine.Any(s.swaggerHandler.BasePath()+"/*filepath", gin.WrapH(s.swaggerHandler))
 	}
 
 	s.server = &http.Server{
@@ -97,7 +114,6 @@ func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
 	}
 }
 
-// Shutdown gracefully stops the server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	if s.server == nil {
 		return nil
@@ -105,17 +121,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }
 
-// Invoke is not supported on server.
 func (s *Server) Invoke(ctx context.Context, endpoint string, req any, resp any) error {
 	return talk.NewError(talk.Unimplemented, "server does not support Invoke")
 }
 
-// InvokeStream is not supported on server.
 func (s *Server) InvokeStream(ctx context.Context, endpoint string, req any) (talk.Stream, error) {
 	return nil, talk.NewError(talk.Unimplemented, "server does not support InvokeStream")
 }
 
-// Close closes the server.
 func (s *Server) Close() error {
 	return nil
 }
@@ -233,9 +246,7 @@ func (s *Server) writeError(c *gin.Context, err *talk.Error) {
 	c.Data(err.HTTPStatus(), s.codec.ContentType(), body)
 }
 
-// convertPathParams converts {param} to :param for Gin routing
 func convertPathParams(path string) string {
-	// Replace {param} with :param
 	result := path
 	for {
 		start := strings.Index(result, "{")
