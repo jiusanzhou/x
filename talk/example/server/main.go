@@ -27,6 +27,8 @@
 //	open http://localhost:8080/swagger/
 package main
 
+//go:generate go run go.zoe.im/x/talk/gen/cmd -type=userService -annotations
+
 import (
 	"context"
 	"encoding/json"
@@ -71,15 +73,6 @@ type userService struct {
 func newUserService() *userService {
 	return &userService{
 		users: make(map[string]*User),
-	}
-}
-
-// TalkAnnotations provides endpoint configuration via annotations.
-// This allows customizing path, method, or skipping methods.
-func (s *userService) TalkAnnotations() map[string]string {
-	return map[string]string{
-		"InternalCheck": "@talk skip",
-		"HealthCheck":   "@talk path=/health method=GET",
 	}
 }
 
@@ -147,12 +140,12 @@ func (s *userService) WatchUsers(ctx context.Context) (<-chan *UserEvent, error)
 	return ch, nil
 }
 
-// HealthCheck is a custom endpoint with @talk annotation.
+// @talk path=/health method=GET
 func (s *userService) HealthCheck(ctx context.Context) (map[string]string, error) {
 	return map[string]string{"status": "ok"}, nil
 }
 
-// InternalCheck is skipped via @talk skip annotation.
+// @talk skip
 func (s *userService) InternalCheck(ctx context.Context) error {
 	log.Println("Internal check called")
 	return nil

@@ -3,9 +3,13 @@
 // Usage:
 //
 //	//go:generate go run go.zoe.im/x/talk/gen/cmd -type=UserService
+//	//go:generate go run go.zoe.im/x/talk/gen/cmd -type=userService -annotations
 //
 // This will generate a file named <input>_talk.go containing endpoint
 // registration code for the specified interface.
+//
+// With -annotations flag, it generates TalkAnnotations() method from
+// source code comments containing @talk directives.
 package main
 
 import (
@@ -19,8 +23,9 @@ import (
 
 func main() {
 	var (
-		typeName   = flag.String("type", "", "interface type name to generate endpoints for")
-		outputFile = flag.String("output", "", "output file name (default: <input>_talk.go)")
+		typeName    = flag.String("type", "", "type name to generate for")
+		outputFile  = flag.String("output", "", "output file name")
+		annotations = flag.Bool("annotations", false, "generate TalkAnnotations() from comments")
 	)
 
 	flag.Parse()
@@ -31,7 +36,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get source file from GOFILE env var (set by go generate) or args
 	sourceFile := os.Getenv("GOFILE")
 	if sourceFile == "" && flag.NArg() > 0 {
 		sourceFile = flag.Arg(0)
@@ -41,18 +45,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Make source file absolute if needed
 	if !filepath.IsAbs(sourceFile) {
-		dir := os.Getenv("GOPACKAGE")
-		if dir == "" {
-			var err error
-			dir, err = os.Getwd()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "error getting working directory: %v\n", err)
-				os.Exit(1)
-			}
+		dir, err := os.Getwd()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error getting working directory: %v\n", err)
+			os.Exit(1)
 		}
 		sourceFile = filepath.Join(dir, sourceFile)
+	}
+
+	if *annotations {
+		if err := gen.GenerateAnnotations(sourceFile, *typeName, *outputFile); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
+		outputName := *outputFile
+		if outputName == "" {
+			ext := filepath.Ext(sourceFile)
+			outputName = sourceFile[:len(sourceFile)-len(ext)] + "_talk_annotations" + ext
+		}
+		fmt.Printf("Generated %s\n", outputName)
+		return
 	}
 
 	g := &gen.Generator{
