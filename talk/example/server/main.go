@@ -20,6 +20,9 @@
 //	# Watch for events (SSE)
 //	curl http://localhost:8080/api/v1/users/watch
 //
+//	# Health check (custom endpoint via annotation)
+//	curl http://localhost:8080/api/v1/health
+//
 //	# Swagger UI
 //	open http://localhost:8080/swagger/
 package main
@@ -68,6 +71,15 @@ type userService struct {
 func newUserService() *userService {
 	return &userService{
 		users: make(map[string]*User),
+	}
+}
+
+// TalkAnnotations provides endpoint configuration via annotations.
+// This allows customizing path, method, or skipping methods.
+func (s *userService) TalkAnnotations() map[string]string {
+	return map[string]string{
+		"InternalCheck": "@talk skip",
+		"HealthCheck":   "@talk path=/health method=GET",
 	}
 }
 
@@ -133,6 +145,17 @@ func (s *userService) WatchUsers(ctx context.Context) (<-chan *UserEvent, error)
 		log.Println("Watch stream completed")
 	}()
 	return ch, nil
+}
+
+// HealthCheck is a custom endpoint with @talk annotation.
+func (s *userService) HealthCheck(ctx context.Context) (map[string]string, error) {
+	return map[string]string{"status": "ok"}, nil
+}
+
+// InternalCheck is skipped via @talk skip annotation.
+func (s *userService) InternalCheck(ctx context.Context) error {
+	log.Println("Internal check called")
+	return nil
 }
 
 func main() {
