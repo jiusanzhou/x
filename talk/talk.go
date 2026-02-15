@@ -48,7 +48,8 @@ func NewServer(t Transport, opts ...ServerOption) *Server {
 }
 
 // Register extracts endpoints from a service implementation and registers them.
-func (s *Server) Register(service any) error {
+// Optional pathPrefix adds a prefix to all endpoint paths (e.g., "/api/v1").
+func (s *Server) Register(service any, pathPrefix ...string) error {
 	if s.extractor == nil {
 		return NewError(FailedPrecondition, "no extractor configured")
 	}
@@ -56,12 +57,28 @@ func (s *Server) Register(service any) error {
 	if err != nil {
 		return err
 	}
+
+	if len(pathPrefix) > 0 && pathPrefix[0] != "" {
+		prefix := pathPrefix[0]
+		for _, ep := range endpoints {
+			ep.Path = prefix + ep.Path
+		}
+	}
+
 	s.endpoints = append(s.endpoints, endpoints...)
 	return nil
 }
 
 // RegisterEndpoints adds pre-defined endpoints.
 func (s *Server) RegisterEndpoints(endpoints ...*Endpoint) {
+	s.endpoints = append(s.endpoints, endpoints...)
+}
+
+// RegisterEndpointsWithPrefix adds pre-defined endpoints with a path prefix.
+func (s *Server) RegisterEndpointsWithPrefix(prefix string, endpoints ...*Endpoint) {
+	for _, ep := range endpoints {
+		ep.Path = prefix + ep.Path
+	}
 	s.endpoints = append(s.endpoints, endpoints...)
 }
 

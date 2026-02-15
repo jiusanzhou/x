@@ -49,17 +49,15 @@ import (
 func main() {
     userSvc := NewUserService()
 
-    // 反射提取 Endpoint
-    extractor := extract.NewReflectExtractor(extract.WithPathPrefix("/api/v1"))
-    endpoints, _ := extractor.Extract(userSvc)
-
-    // 创建 Server
+    // 创建 Server（使用默认 extractor）
     cfg := x.TypedLazyConfig{
         Type:   "http",
         Config: json.RawMessage(`{"addr": ":8080"}`),
     }
-    server, _ := talk.NewServerFromConfig(cfg)
-    server.RegisterEndpoints(endpoints...)
+    server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+    
+    // 注册服务，带 API 前缀
+    server.Register(userSvc, "/api/v1")
 
     // 启动
     ctx := context.Background()
@@ -165,8 +163,8 @@ cfg := x.TypedLazyConfig{
     }`),
 }
 
-server, _ := talk.NewServerFromConfig(cfg)
-server.RegisterEndpoints(endpoints...)
+server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+server.Register(userSvc, "/api/v1")
 server.Serve(ctx)
 
 // Swagger UI: http://localhost:8080/swagger/
@@ -195,13 +193,16 @@ cfg := x.TypedLazyConfig{
 
 ### 反射提取（推荐）
 
-从服务接口自动推导 HTTP Method 和 Path：
+使用 `Register` 方法自动提取并注册 Endpoint，可选路径前缀：
 
 ```go
-extractor := extract.NewReflectExtractor(
-    extract.WithPathPrefix("/api/v1"),
-)
-endpoints, err := extractor.Extract(&userServiceImpl{})
+server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+
+// 注册服务，带 API 前缀
+server.Register(&userServiceImpl{}, "/api/v1")
+
+// 或不带前缀
+server.Register(&otherServiceImpl{})
 ```
 
 **函数名推导规则：**
