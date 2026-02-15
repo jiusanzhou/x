@@ -148,25 +148,22 @@ func (s *userServiceImpl) WatchUsers(ctx context.Context) (<-chan *UserEvent, er
 func ExampleHTTPServer() {
 	userSvc := NewUserService()
 
-	extractor := extract.NewReflectExtractor(extract.WithPathPrefix("/api/v1"))
-	endpoints, err := extractor.Extract(userSvc)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	cfg := x.TypedLazyConfig{
 		Type:   "http",
 		Config: json.RawMessage(`{"addr": ":8080"}`),
 	}
 
-	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extractor))
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.RegisterEndpoints(endpoints...)
 
-	fmt.Printf("Registered %d endpoints:\n", len(endpoints))
-	for _, ep := range endpoints {
+	if err := server.Register(userSvc, "/api/v1"); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Registered %d endpoints:\n", len(server.Endpoints()))
+	for _, ep := range server.Endpoints() {
 		fmt.Printf("  %s %s -> %s\n", ep.Method, ep.Path, ep.Name)
 	}
 
@@ -215,22 +212,19 @@ func ExampleHTTPClient() {
 func ExampleWebSocketServer() {
 	userSvc := NewUserService()
 
-	extractor := extract.NewReflectExtractor()
-	endpoints, err := extractor.Extract(userSvc)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	cfg := x.TypedLazyConfig{
 		Type:   "websocket",
 		Config: json.RawMessage(`{"addr": ":8081", "path": "/ws"}`),
 	}
 
-	server, err := talk.NewServerFromConfig(cfg)
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.RegisterEndpoints(endpoints...)
+
+	if err := server.Register(userSvc); err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("WebSocket server listening on :8081/ws")
 	ctx := context.Background()
@@ -483,12 +477,6 @@ func ExampleRegisterTransport() {
 func ExampleSwagger() {
 	userSvc := NewUserService()
 
-	extractor := extract.NewReflectExtractor(extract.WithPathPrefix("/api/v1"))
-	endpoints, err := extractor.Extract(userSvc)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	cfg := x.TypedLazyConfig{
 		Type: "http",
 		Config: json.RawMessage(`{
@@ -503,13 +491,16 @@ func ExampleSwagger() {
 		}`),
 	}
 
-	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extractor))
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
 	if err != nil {
 		log.Fatal(err)
 	}
-	server.RegisterEndpoints(endpoints...)
 
-	fmt.Printf("Registered %d endpoints\n", len(endpoints))
+	if err := server.Register(userSvc, "/api/v1"); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Registered %d endpoints\n", len(server.Endpoints()))
 	fmt.Println("Swagger UI available at: http://localhost:8080/swagger/")
 	fmt.Println("OpenAPI spec available at: http://localhost:8080/swagger/openapi.json")
 
