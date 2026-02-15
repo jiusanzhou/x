@@ -34,8 +34,7 @@ import (
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
 
-	_ "go.zoe.im/x/talk/extract"        // 注册默认 Extractor
-	_ "go.zoe.im/x/talk/transport/grpc" // 注册 gRPC 传输
+	_ "go.zoe.im/x/talk/transport/grpc"
 )
 
 type User struct {

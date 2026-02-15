@@ -42,7 +42,6 @@ func (s *userServiceImpl) GetUser(ctx context.Context, id string) (*User, error)
 import (
     "go.zoe.im/x"
     "go.zoe.im/x/talk"
-    _ "go.zoe.im/x/talk/extract"               // 注册默认 Extractor
     _ "go.zoe.im/x/talk/transport/http/std"    // 注册 HTTP 传输
 )
 
@@ -191,13 +190,11 @@ cfg := x.TypedLazyConfig{
 
 ## Endpoint 提取
 
-### 反射提取（推荐）
+### 反射提取（内置）
 
-使用 `Register` 方法自动提取并注册 Endpoint。导入 `extract` 包会自动注册 `ReflectExtractor` 作为默认提取器：
+`talk` 包内置了 `ReflectExtractor`，无需额外导入。使用 `Register` 方法自动提取并注册 Endpoint：
 
 ```go
-import _ "go.zoe.im/x/talk/extract"  // 注册默认 Extractor
-
 // 方式一：Server 级别设置默认前缀
 server, _ := talk.NewServerFromConfig(cfg, talk.WithPathPrefix("/api/v1"))
 server.Register(&userServiceImpl{})  // 自动使用 /api/v1 前缀

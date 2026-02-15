@@ -1,12 +1,11 @@
-package extract
+package talk
 
 import (
 	"context"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode"
-
-	"go.zoe.im/x/talk"
 )
 
 var (
@@ -14,21 +13,14 @@ var (
 	errorType   = reflect.TypeOf((*error)(nil)).Elem()
 )
 
-// ReflectExtractor extracts endpoints from a service using reflection.
-type ReflectExtractor struct {
-	opts Options
+// MethodAnnotations allows services to provide custom endpoint configuration.
+type MethodAnnotations interface {
+	TalkAnnotations() map[string]string
 }
 
-// NewReflectExtractor creates a new reflection-based extractor.
-func NewReflectExtractor(opts ...Option) *ReflectExtractor {
-	e := &ReflectExtractor{}
-	for _, opt := range opts {
-		opt(&e.opts)
-	}
-	return e
-}
+type reflectExtractor struct{}
 
-func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
+func (e *reflectExtractor) Extract(service any) ([]*Endpoint, error) {
 	svcValue := reflect.ValueOf(service)
 	svcType := svcValue.Type()
 
@@ -37,7 +29,7 @@ func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
 		annotations = ma.TalkAnnotations()
 	}
 
-	var endpoints []*talk.Endpoint
+	var endpoints []*Endpoint
 
 	for i := 0; i < svcType.NumMethod(); i++ {
 		method := svcType.Method(i)
@@ -46,11 +38,11 @@ func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
 			continue
 		}
 
-		var ann *Annotation
+		var ann *annotation
 		if annotations != nil {
 			if comment, ok := annotations[method.Name]; ok {
-				ann = ParseAnnotation(comment)
-				if ann != nil && ann.Skip {
+				ann = parseAnnotation(comment)
+				if ann != nil && ann.skip {
 					continue
 				}
 			}
@@ -61,30 +53,23 @@ func (e *ReflectExtractor) Extract(service any) ([]*talk.Endpoint, error) {
 			continue
 		}
 
-		if e.opts.PathPrefix != "" {
-			endpoint.Path = e.opts.PathPrefix + endpoint.Path
-		}
-
 		endpoints = append(endpoints, endpoint)
 	}
 
 	return endpoints, nil
 }
 
-func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.Method, ann *Annotation) (*talk.Endpoint, bool) {
+func (e *reflectExtractor) extractMethod(svcValue reflect.Value, method reflect.Method, ann *annotation) (*Endpoint, bool) {
 	methodType := method.Type
 
-	// Minimum: receiver, context -> (response, error)
 	if methodType.NumIn() < 2 || methodType.NumOut() < 1 {
 		return nil, false
 	}
 
-	// First param (after receiver) must be context.Context
 	if !methodType.In(1).Implements(contextType) {
 		return nil, false
 	}
 
-	// Last return must be error
 	if !methodType.Out(methodType.NumOut() - 1).Implements(errorType) {
 		return nil, false
 	}
@@ -94,33 +79,18 @@ func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 	streamMode := e.detectStreamMode(methodType)
 
 	if ann != nil {
-		if ann.Path != "" {
-			path = ann.Path
+		if ann.path != "" {
+			path = ann.path
 		}
-		if ann.Method != "" {
-			httpMethod = ann.Method
+		if ann.method != "" {
+			httpMethod = ann.method
 		}
-		if ann.StreamMode != talk.StreamNone {
-			streamMode = ann.StreamMode
-		}
-	}
-
-	if mapping, ok := e.opts.MethodMapping[name]; ok {
-		if mapping.Skip {
-			return nil, false
-		}
-		if mapping.Path != "" {
-			path = mapping.Path
-		}
-		if mapping.HTTPMethod != "" {
-			httpMethod = mapping.HTTPMethod
-		}
-		if mapping.StreamMode != talk.StreamNone {
-			streamMode = mapping.StreamMode
+		if ann.streamMode != StreamNone {
+			streamMode = ann.streamMode
 		}
 	}
 
-	endpoint := &talk.Endpoint{
+	endpoint := &Endpoint{
 		Name:       name,
 		Path:       path,
 		Method:     httpMethod,
@@ -128,7 +98,6 @@ func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 		Metadata:   make(map[string]any),
 	}
 
-	// Extract request/response types
 	if methodType.NumIn() > 2 {
 		endpoint.RequestType = methodType.In(2)
 	}
@@ -140,14 +109,13 @@ func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 		endpoint.ResponseType = respType
 	}
 
-	// Create handler that wraps the method
 	methodValue := svcValue.Method(method.Index)
 	endpoint.Handler = e.createHandler(methodValue, methodType)
 
 	return endpoint, true
 }
 
-func (e *ReflectExtractor) deriveMethodAndPath(name string, methodType reflect.Type) (httpMethod, path string) {
+func (e *reflectExtractor) deriveMethodAndPath(name string, methodType reflect.Type) (httpMethod, path string) {
 	resource := e.extractResource(name)
 	hasIDParam := methodType.NumIn() > 2 && isSimpleType(methodType.In(2))
 
@@ -182,7 +150,7 @@ func (e *ReflectExtractor) deriveMethodAndPath(name string, methodType reflect.T
 	return
 }
 
-func (e *ReflectExtractor) extractResource(methodName string) string {
+func (e *reflectExtractor) extractResource(methodName string) string {
 	prefixes := []string{"Get", "List", "Create", "Update", "Delete", "Watch"}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(methodName, prefix) {
@@ -193,11 +161,10 @@ func (e *ReflectExtractor) extractResource(methodName string) string {
 	return strings.ToLower(methodName)
 }
 
-func (e *ReflectExtractor) detectStreamMode(methodType reflect.Type) talk.StreamMode {
+func (e *reflectExtractor) detectStreamMode(methodType reflect.Type) StreamMode {
 	hasInputChan := false
 	hasOutputChan := false
 
-	// Check input params for chan (skip receiver and context)
 	for i := 2; i < methodType.NumIn(); i++ {
 		if methodType.In(i).Kind() == reflect.Chan {
 			hasInputChan = true
@@ -205,7 +172,6 @@ func (e *ReflectExtractor) detectStreamMode(methodType reflect.Type) talk.Stream
 		}
 	}
 
-	// Check output for chan (skip error)
 	for i := 0; i < methodType.NumOut()-1; i++ {
 		if methodType.Out(i).Kind() == reflect.Chan {
 			hasOutputChan = true
@@ -215,21 +181,20 @@ func (e *ReflectExtractor) detectStreamMode(methodType reflect.Type) talk.Stream
 
 	switch {
 	case hasInputChan && hasOutputChan:
-		return talk.StreamBidirect
+		return StreamBidirect
 	case hasInputChan:
-		return talk.StreamClientSide
+		return StreamClientSide
 	case hasOutputChan:
-		return talk.StreamServerSide
+		return StreamServerSide
 	default:
-		return talk.StreamNone
+		return StreamNone
 	}
 }
 
-func (e *ReflectExtractor) createHandler(methodValue reflect.Value, methodType reflect.Type) talk.EndpointFunc {
+func (e *reflectExtractor) createHandler(methodValue reflect.Value, methodType reflect.Type) EndpointFunc {
 	return func(ctx context.Context, request any) (any, error) {
 		args := []reflect.Value{reflect.ValueOf(ctx)}
 
-		// Add request argument if method expects one
 		if methodType.NumIn() > 2 {
 			if request != nil {
 				args = append(args, reflect.ValueOf(request))
@@ -282,21 +247,63 @@ func toKebabCase(s string) string {
 	return result.String()
 }
 
-func pluralize(s string) string {
-	if strings.HasSuffix(s, "s") || strings.HasSuffix(s, "x") ||
-		strings.HasSuffix(s, "ch") || strings.HasSuffix(s, "sh") {
-		return s + "es"
-	}
-	if strings.HasSuffix(s, "y") && len(s) > 1 {
-		c := s[len(s)-2]
-		if c != 'a' && c != 'e' && c != 'i' && c != 'o' && c != 'u' {
-			return s[:len(s)-1] + "ies"
-		}
-	}
-	return s + "s"
+type annotation struct {
+	path       string
+	method     string
+	streamMode StreamMode
+	skip       bool
 }
 
-// FromService extracts endpoints from a service using reflection.
-func FromService(service any, opts ...Option) ([]*talk.Endpoint, error) {
-	return NewReflectExtractor(opts...).Extract(service)
+var annotationRegex = regexp.MustCompile(`@talk\s*(.*)`)
+var kvRegex = regexp.MustCompile(`(\w+)=([^\s]+)`)
+
+func parseAnnotation(comment string) *annotation {
+	match := annotationRegex.FindStringSubmatch(comment)
+	if match == nil {
+		return nil
+	}
+
+	ann := &annotation{}
+	content := strings.TrimSpace(match[1])
+
+	if content == "skip" || content == "ignore" || content == "-" {
+		ann.skip = true
+		return ann
+	}
+
+	kvMatches := kvRegex.FindAllStringSubmatch(content, -1)
+	for _, kv := range kvMatches {
+		key := strings.ToLower(kv[1])
+		value := kv[2]
+
+		switch key {
+		case "path":
+			ann.path = value
+		case "method":
+			ann.method = strings.ToUpper(value)
+		case "stream":
+			ann.streamMode = parseStreamMode(value)
+		case "skip", "ignore":
+			ann.skip = value == "true" || value == "1"
+		}
+	}
+
+	return ann
+}
+
+func parseStreamMode(s string) StreamMode {
+	switch strings.ToLower(s) {
+	case "server", "server-side", "sse":
+		return StreamServerSide
+	case "client", "client-side":
+		return StreamClientSide
+	case "bidi", "bidirectional", "duplex":
+		return StreamBidirect
+	default:
+		return StreamNone
+	}
+}
+
+func init() {
+	defaultExtractor = &reflectExtractor{}
 }
