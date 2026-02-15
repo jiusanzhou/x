@@ -158,7 +158,7 @@ func ExampleHTTPServer() {
 		log.Fatal(err)
 	}
 
-	if err := server.Register(userSvc, "/api/v1"); err != nil {
+	if err := server.Register(userSvc, talk.WithPrefix("/api/v1")); err != nil {
 		log.Fatal(err)
 	}
 
@@ -496,7 +496,7 @@ func ExampleSwagger() {
 		log.Fatal(err)
 	}
 
-	if err := server.Register(userSvc, "/api/v1"); err != nil {
+	if err := server.Register(userSvc, talk.WithPrefix("/api/v1")); err != nil {
 		log.Fatal(err)
 	}
 

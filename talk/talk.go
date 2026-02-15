@@ -47,21 +47,40 @@ func NewServer(t Transport, opts ...ServerOption) *Server {
 	return s
 }
 
+// RegisterOption configures service registration.
+type RegisterOption func(*registerConfig)
+
+type registerConfig struct {
+	pathPrefix string
+}
+
+// WithPrefix sets a path prefix for all endpoints (e.g., "/api/v1").
+func WithPrefix(prefix string) RegisterOption {
+	return func(c *registerConfig) {
+		c.pathPrefix = prefix
+	}
+}
+
 // Register extracts endpoints from a service implementation and registers them.
-// Optional pathPrefix adds a prefix to all endpoint paths (e.g., "/api/v1").
-func (s *Server) Register(service any, pathPrefix ...string) error {
+// Use WithPrefix("/api/v1") to add a path prefix to all endpoints.
+func (s *Server) Register(service any, opts ...RegisterOption) error {
 	if s.extractor == nil {
 		return NewError(FailedPrecondition, "no extractor configured")
 	}
+
+	cfg := &registerConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	endpoints, err := s.extractor.Extract(service)
 	if err != nil {
 		return err
 	}
 
-	if len(pathPrefix) > 0 && pathPrefix[0] != "" {
-		prefix := pathPrefix[0]
+	if cfg.pathPrefix != "" {
 		for _, ep := range endpoints {
-			ep.Path = prefix + ep.Path
+			ep.Path = cfg.pathPrefix + ep.Path
 		}
 	}
 
@@ -80,6 +99,11 @@ func (s *Server) RegisterEndpointsWithPrefix(prefix string, endpoints ...*Endpoi
 		ep.Path = prefix + ep.Path
 	}
 	s.endpoints = append(s.endpoints, endpoints...)
+}
+
+// RegisterWithPrefix is a convenience method for Register(service, WithPrefix(prefix)).
+func (s *Server) RegisterWithPrefix(service any, prefix string) error {
+	return s.Register(service, WithPrefix(prefix))
 }
 
 // Endpoints returns all registered endpoints.
