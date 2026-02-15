@@ -49,15 +49,18 @@ import (
 func main() {
     userSvc := NewUserService()
 
-    // 创建 Server（使用默认 extractor）
+    // 创建 Server，设置默认路径前缀
     cfg := x.TypedLazyConfig{
         Type:   "http",
         Config: json.RawMessage(`{"addr": ":8080"}`),
     }
-    server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+    server, _ := talk.NewServerFromConfig(cfg, 
+        talk.WithExtractor(extract.NewReflectExtractor()),
+        talk.WithPathPrefix("/api/v1"),
+    )
     
-    // 注册服务，带 API 前缀
-    server.Register(userSvc, talk.WithPrefix("/api/v1"))
+    // 注册服务（自动使用默认前缀）
+    server.Register(userSvc)
 
     // 启动
     ctx := context.Background()
@@ -163,8 +166,11 @@ cfg := x.TypedLazyConfig{
     }`),
 }
 
-server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
-server.Register(userSvc, talk.WithPrefix("/api/v1"))
+server, _ := talk.NewServerFromConfig(cfg, 
+    talk.WithExtractor(extract.NewReflectExtractor()),
+    talk.WithPathPrefix("/api/v1"),
+)
+server.Register(userSvc)
 server.Serve(ctx)
 
 // Swagger UI: http://localhost:8080/swagger/
@@ -193,16 +199,18 @@ cfg := x.TypedLazyConfig{
 
 ### 反射提取（推荐）
 
-使用 `Register` 方法自动提取并注册 Endpoint，使用 `WithPrefix` 选项添加路径前缀：
+使用 `Register` 方法自动提取并注册 Endpoint。可以通过 `WithPathPrefix` 设置服务级别默认前缀，或用 `WithPrefix` 覆盖：
 
 ```go
-server, _ := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+// 方式一：Server 级别设置默认前缀
+server, _ := talk.NewServerFromConfig(cfg, 
+    talk.WithExtractor(extract.NewReflectExtractor()),
+    talk.WithPathPrefix("/api/v1"),
+)
+server.Register(&userServiceImpl{})  // 自动使用 /api/v1 前缀
 
-// 注册服务，带 API 前缀
-server.Register(&userServiceImpl{}, talk.WithPrefix("/api/v1"))
-
-// 或不带前缀
-server.Register(&otherServiceImpl{})
+// 方式二：Register 时指定前缀（覆盖默认）
+server.Register(&otherServiceImpl{}, talk.WithPrefix("/api/v2"))
 ```
 
 **函数名推导规则：**
