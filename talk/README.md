@@ -217,6 +217,32 @@ server.Register(&otherServiceImpl{}, talk.WithPrefix("/api/v2"))
 | `Delete` | DELETE | `/{resource}/{id}` |
 | `Watch` | GET (SSE) | `/{resource}/watch` |
 
+### 使用注解自定义 Endpoint
+
+服务可以实现 `MethodAnnotations` 接口来自定义 Endpoint 配置或跳过某些方法：
+
+```go
+type userService struct{}
+
+func (s *userService) GetUser(ctx context.Context, id string) (*User, error) { ... }
+func (s *userService) InternalMethod(ctx context.Context) error { ... }
+func (s *userService) CustomEndpoint(ctx context.Context) (*Result, error) { ... }
+
+// TalkAnnotations 返回方法注解
+func (s *userService) TalkAnnotations() map[string]string {
+    return map[string]string{
+        "InternalMethod": "@talk skip",                           // 跳过注册
+        "CustomEndpoint": "@talk path=/custom method=PUT",        // 自定义路径和方法
+    }
+}
+```
+
+**注解格式：**
+- `@talk skip` 或 `@talk ignore` - 跳过该方法，不注册为 Endpoint
+- `@talk path=/custom/path` - 自定义路径
+- `@talk method=PUT` - 自定义 HTTP 方法
+- `@talk stream=server` - 设置流模式 (server/client/bidi)
+
 ### 手动注册
 
 ```go
