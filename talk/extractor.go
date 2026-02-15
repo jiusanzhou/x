@@ -110,7 +110,12 @@ func (e *reflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 	}
 
 	methodValue := svcValue.Method(method.Index)
-	endpoint.Handler = e.createHandler(methodValue, methodType)
+
+	if streamMode != StreamNone {
+		endpoint.StreamHandler = e.createStreamHandler(methodValue, methodType)
+	} else {
+		endpoint.Handler = e.createHandler(methodValue, methodType)
+	}
 
 	return endpoint, true
 }
@@ -219,6 +224,56 @@ func (e *reflectExtractor) createHandler(methodValue reflect.Value, methodType r
 		}
 
 		return resp, err
+	}
+}
+
+func (e *reflectExtractor) createStreamHandler(methodValue reflect.Value, methodType reflect.Type) StreamEndpointFunc {
+	return func(ctx context.Context, request any, stream Stream) error {
+		args := []reflect.Value{reflect.ValueOf(ctx)}
+
+		if methodType.NumIn() > 2 {
+			if request != nil {
+				args = append(args, reflect.ValueOf(request))
+			} else {
+				args = append(args, reflect.Zero(methodType.In(2)))
+			}
+		}
+
+		results := methodValue.Call(args)
+
+		if len(results) == 0 {
+			return nil
+		}
+
+		lastIdx := len(results) - 1
+		if !results[lastIdx].IsNil() {
+			return results[lastIdx].Interface().(error)
+		}
+
+		if lastIdx > 0 && results[0].Kind() == reflect.Chan {
+			ch := results[0]
+			ctxDone := reflect.ValueOf(ctx.Done())
+
+			cases := []reflect.SelectCase{
+				{Dir: reflect.SelectRecv, Chan: ctxDone},
+				{Dir: reflect.SelectRecv, Chan: ch},
+			}
+
+			for {
+				chosen, val, ok := reflect.Select(cases)
+				if chosen == 0 {
+					return ctx.Err()
+				}
+				if !ok {
+					break
+				}
+				if err := stream.Send(val.Interface()); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
 	}
 }
 

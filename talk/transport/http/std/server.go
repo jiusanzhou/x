@@ -200,6 +200,8 @@ func (s *Server) createSSEHandler(ep *talk.Endpoint) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("Connection", "keep-alive")
 		w.Header().Set("X-Accel-Buffering", "no")
+		w.WriteHeader(http.StatusOK)
+		flusher.Flush()
 
 		var req any
 		req = s.extractPathParams(r, ep, req)
