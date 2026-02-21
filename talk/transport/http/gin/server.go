@@ -25,6 +25,8 @@ type Server struct {
 	engine         *gin.Engine
 	endpoints      []*talk.Endpoint
 	swaggerHandler *swagger.Handler
+	externalEngine bool
+	externalServer bool
 }
 
 func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
@@ -42,9 +44,11 @@ func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 		s.codec = codec.MustGet("json")
 	}
 
-	gin.SetMode(gin.ReleaseMode)
-	s.engine = gin.New()
-	s.engine.Use(gin.Recovery())
+	if s.engine == nil {
+		gin.SetMode(gin.ReleaseMode)
+		s.engine = gin.New()
+		s.engine.Use(gin.Recovery())
+	}
 
 	if s.config.Swagger.Enabled {
 		swaggerCfg := s.config.Swagger
@@ -66,6 +70,24 @@ func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 	return s, nil
 }
 
+func WithEngine(engine *gin.Engine) thttp.Option {
+	return func(v any) {
+		if s, ok := v.(*Server); ok {
+			s.engine = engine
+			s.externalEngine = true
+		}
+	}
+}
+
+func WithHTTPServer(server *http.Server) thttp.Option {
+	return func(v any) {
+		if s, ok := v.(*Server); ok {
+			s.server = server
+			s.externalServer = true
+		}
+	}
+}
+
 func (s *Server) SetCodec(c codec.Codec) {
 	s.codec = c
 }
@@ -74,28 +96,46 @@ func (s *Server) Engine() *gin.Engine {
 	return s.engine
 }
 
+func (s *Server) Handler() http.Handler {
+	return s.engine
+}
+
+func (s *Server) RegisterEndpoints(endpoints []*talk.Endpoint) {
+	s.endpoints = endpoints
+	for _, ep := range endpoints {
+		s.registerEndpoint(ep)
+	}
+	if s.swaggerHandler != nil {
+		s.swaggerHandler.SetEndpoints(endpoints)
+		s.engine.Any(s.swaggerHandler.BasePath()+"/*filepath", gin.WrapH(s.swaggerHandler))
+	}
+}
+
 func (s *Server) String() string {
 	return "http/gin"
 }
 
 func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
-	s.endpoints = endpoints
+	s.RegisterEndpoints(endpoints)
 
-	for _, ep := range endpoints {
-		s.registerEndpoint(ep)
+	if s.externalEngine {
+		<-ctx.Done()
+		return nil
 	}
 
-	if s.swaggerHandler != nil {
-		s.swaggerHandler.SetEndpoints(endpoints)
-		s.engine.Any(s.swaggerHandler.BasePath()+"/*filepath", gin.WrapH(s.swaggerHandler))
+	if s.server == nil {
+		s.server = &http.Server{
+			Addr:         s.config.Addr,
+			Handler:      s.engine,
+			ReadTimeout:  time.Duration(s.config.ReadTimeout),
+			WriteTimeout: time.Duration(s.config.WriteTimeout),
+			IdleTimeout:  time.Duration(s.config.IdleTimeout),
+		}
 	}
 
-	s.server = &http.Server{
-		Addr:         s.config.Addr,
-		Handler:      s.engine,
-		ReadTimeout:  time.Duration(s.config.ReadTimeout),
-		WriteTimeout: time.Duration(s.config.WriteTimeout),
-		IdleTimeout:  time.Duration(s.config.IdleTimeout),
+	if s.externalServer {
+		<-ctx.Done()
+		return nil
 	}
 
 	errCh := make(chan error, 1)

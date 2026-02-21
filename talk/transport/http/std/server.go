@@ -24,12 +24,12 @@ type Server struct {
 	mux            *http.ServeMux
 	endpoints      []*talk.Endpoint
 	swaggerHandler *swagger.Handler
+	externalMux    bool
+	externalServer bool
 }
 
 func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
-	s := &Server{
-		mux: http.NewServeMux(),
-	}
+	s := &Server{}
 
 	if err := cfg.Unmarshal(&s.config); err != nil {
 		return nil, err
@@ -41,6 +41,10 @@ func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 
 	if s.codec == nil {
 		s.codec = codec.MustGet("json")
+	}
+
+	if s.mux == nil {
+		s.mux = http.NewServeMux()
 	}
 
 	if s.config.Swagger.Enabled {
@@ -63,6 +67,24 @@ func NewServer(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Server, error) {
 	return s, nil
 }
 
+func WithServeMux(mux *http.ServeMux) thttp.Option {
+	return func(v any) {
+		if s, ok := v.(*Server); ok {
+			s.mux = mux
+			s.externalMux = true
+		}
+	}
+}
+
+func WithHTTPServer(server *http.Server) thttp.Option {
+	return func(v any) {
+		if s, ok := v.(*Server); ok {
+			s.server = server
+			s.externalServer = true
+		}
+	}
+}
+
 func (s *Server) SetCodec(c codec.Codec) {
 	s.codec = c
 }
@@ -71,24 +93,46 @@ func (s *Server) String() string {
 	return "http/std"
 }
 
-func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
-	s.endpoints = endpoints
+func (s *Server) Handler() http.Handler {
+	return s.mux
+}
 
+func (s *Server) ServeMux() *http.ServeMux {
+	return s.mux
+}
+
+func (s *Server) RegisterEndpoints(endpoints []*talk.Endpoint) {
+	s.endpoints = endpoints
 	for _, ep := range endpoints {
 		s.registerEndpoint(ep)
 	}
-
 	if s.swaggerHandler != nil {
 		s.swaggerHandler.SetEndpoints(endpoints)
 		s.mux.Handle(s.swaggerHandler.BasePath()+"/", s.swaggerHandler)
 	}
+}
 
-	s.server = &http.Server{
-		Addr:         s.config.Addr,
-		Handler:      s.mux,
-		ReadTimeout:  time.Duration(s.config.ReadTimeout),
-		WriteTimeout: time.Duration(s.config.WriteTimeout),
-		IdleTimeout:  time.Duration(s.config.IdleTimeout),
+func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
+	s.RegisterEndpoints(endpoints)
+
+	if s.externalMux {
+		<-ctx.Done()
+		return nil
+	}
+
+	if s.server == nil {
+		s.server = &http.Server{
+			Addr:         s.config.Addr,
+			Handler:      s.mux,
+			ReadTimeout:  time.Duration(s.config.ReadTimeout),
+			WriteTimeout: time.Duration(s.config.WriteTimeout),
+			IdleTimeout:  time.Duration(s.config.IdleTimeout),
+		}
+	}
+
+	if s.externalServer {
+		<-ctx.Done()
+		return nil
 	}
 
 	errCh := make(chan error, 1)
