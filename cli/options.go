@@ -154,7 +154,7 @@ func GlobalConfig(v any, cfos ...ConfigOption) Option {
 
 			if err := c.configobj.Init(cfopts.build()...); err != nil {
 				log.Println("[WARN] init config error:", err)
-				return
+				// return
 			}
 
 			// can reset with flag parse

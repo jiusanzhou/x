@@ -128,7 +128,7 @@ func (c *Config) load() error {
 
 				s.err = s.load(data)
 				if s.err != nil {
-					log.Println("[ERROR] load config", n, typ, "error:", s.err)
+					log.Println("[WARN] load config", n, typ, "error:", s.err)
 					c.errs.Add(s.err)
 					// NOTE: maby we should add this s to sources map
 					continue
