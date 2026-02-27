@@ -4,7 +4,9 @@ package main
 
 func (s *userService) TalkAnnotations() map[string]string {
 	return map[string]string{
-		"HealthCheck": "@talk path=/health method=GET",
-		"InternalCheck": "@talk skip",
+		"HealthCheck":     "@talk path=/health method=GET",
+		"InternalCheck":   "@talk skip",
+		"GetNodeModel":    "@talk path=/nodes/{nodeName}/models/{modelName} method=GET",
+		"DeleteNodeModel": "@talk path=/nodes/{nodeName}/models/{modelName} method=DELETE",
 	}
 }

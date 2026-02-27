@@ -1,4 +1,4 @@
-// Command server demonstrates a simple HTTP server using talk.
+// Command server demonstrates a full-featured HTTP server using talk.
 //
 // Run with:
 //
@@ -22,6 +22,15 @@
 //
 //	# Health check (custom endpoint via annotation)
 //	curl http://localhost:8080/api/v1/health
+//
+//	# Path params: get a specific model on a node
+//	curl http://localhost:8080/api/v1/nodes/gpu-01/models/llama-70b
+//
+//	# Path params: delete a model from a node
+//	curl -X DELETE http://localhost:8080/api/v1/nodes/gpu-01/models/llama-70b
+//
+//	# Query params: list tasks with filters
+//	curl "http://localhost:8080/api/v1/tasks?status=running&node=gpu-01&limit=10"
 //
 //	# Swagger UI
 //	open http://localhost:8080/swagger/
@@ -56,6 +65,33 @@ type User struct {
 type CreateUserRequest struct {
 	Name  string `json:"name"`
 	Email string `json:"email"`
+}
+
+// NodeModelRequest demonstrates path parameters with struct tags.
+type NodeModelRequest struct {
+	NodeName  string `json:"nodeName" path:"nodeName"`
+	ModelName string `json:"modelName" path:"modelName"`
+}
+
+// NodeModelResponse is the response for node model operations.
+type NodeModelResponse struct {
+	Node  string `json:"node"`
+	Model string `json:"model"`
+	Ready bool   `json:"ready"`
+}
+
+// ListTasksRequest demonstrates query parameters with struct tags.
+type ListTasksRequest struct {
+	Status string `json:"status" query:"status"`
+	Node   string `json:"node" query:"node"`
+	Limit  string `json:"limit" query:"limit"`
+}
+
+// TaskInfo represents a task entity.
+type TaskInfo struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Node   string `json:"node"`
 }
 
 // UserEvent represents an event about a user.
@@ -140,6 +176,34 @@ func (s *userService) WatchUsers(ctx context.Context) (<-chan *UserEvent, error)
 	return ch, nil
 }
 
+// GetNodeModel handles GET /nodes/{nodeName}/models/{modelName}
+// Path parameters are automatically extracted into NodeModelRequest fields.
+func (s *userService) GetNodeModel(ctx context.Context, req *NodeModelRequest) (*NodeModelResponse, error) {
+	log.Printf("Getting model %s from node %s", req.ModelName, req.NodeName)
+	return &NodeModelResponse{
+		Node:  req.NodeName,
+		Model: req.ModelName,
+		Ready: true,
+	}, nil
+}
+
+// DeleteNodeModel handles DELETE /nodes/{nodeName}/models/{modelName}
+// Even DELETE requests with no body can receive path parameters via struct tags.
+func (s *userService) DeleteNodeModel(ctx context.Context, req *NodeModelRequest) error {
+	log.Printf("Deleting model %s from node %s", req.ModelName, req.NodeName)
+	return nil
+}
+
+// ListTasks handles GET /tasks?status=running&node=gpu-01
+// Query parameters are automatically extracted into ListTasksRequest fields.
+func (s *userService) ListTasks(ctx context.Context, req *ListTasksRequest) ([]*TaskInfo, error) {
+	log.Printf("Listing tasks: status=%s, node=%s, limit=%s", req.Status, req.Node, req.Limit)
+	return []*TaskInfo{
+		{ID: "task-1", Status: req.Status, Node: req.Node},
+		{ID: "task-2", Status: req.Status, Node: req.Node},
+	}, nil
+}
+
 // @talk path=/health method=GET
 func (s *userService) HealthCheck(ctx context.Context) (map[string]string, error) {
 	return map[string]string{"status": "ok"}, nil
@@ -149,6 +213,37 @@ func (s *userService) HealthCheck(ctx context.Context) (map[string]string, error
 func (s *userService) InternalCheck(ctx context.Context) error {
 	log.Println("Internal check called")
 	return nil
+}
+
+// loggingMiddleware logs every request/response.
+func loggingMiddleware() talk.MiddlewareFunc {
+	return func(next talk.EndpointFunc) talk.EndpointFunc {
+		return func(ctx context.Context, req any) (any, error) {
+			log.Printf("[REQUEST] %+v", req)
+			resp, err := next(ctx, req)
+			if err != nil {
+				log.Printf("[ERROR] %v", err)
+			} else {
+				log.Printf("[RESPONSE] %+v", resp)
+			}
+			return resp, err
+		}
+	}
+}
+
+// recoveryMiddleware catches panics and converts them to errors.
+func recoveryMiddleware() talk.MiddlewareFunc {
+	return func(next talk.EndpointFunc) talk.EndpointFunc {
+		return func(ctx context.Context, req any) (resp any, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("[RECOVERY] caught panic: %v", r)
+					err = talk.NewError(talk.Internal, fmt.Sprintf("internal error: %v", r))
+				}
+			}()
+			return next(ctx, req)
+		}
+	}
 }
 
 func main() {
@@ -162,13 +257,20 @@ func main() {
 				"enabled": true,
 				"path": "/swagger",
 				"title": "User Service API",
-				"description": "Example API for managing users",
-				"version": "1.0.0"
+				"description": "Example API with path params, query params, and middleware",
+				"version": "1.1.0"
 			}
 		}`),
 	}
 
-	server, err := talk.NewServerFromConfig(cfg, talk.WithPathPrefix("/api/v1"))
+	// Server-level middleware: recovery + logging applied to ALL endpoints.
+	server, err := talk.NewServerFromConfig(cfg,
+		talk.WithPathPrefix("/api/v1"),
+		talk.WithServerMiddleware(
+			recoveryMiddleware(),
+			loggingMiddleware(),
+		),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -179,7 +281,11 @@ func main() {
 
 	fmt.Println("Registered endpoints:")
 	for _, ep := range server.Endpoints() {
-		fmt.Printf("  %s %s -> %s", ep.Method, ep.Path, ep.Name)
+		mwInfo := ""
+		if len(ep.Middleware) > 0 {
+			mwInfo = fmt.Sprintf(" (%d middleware)", len(ep.Middleware))
+		}
+		fmt.Printf("  %s %s -> %s%s", ep.Method, ep.Path, ep.Name, mwInfo)
 		if ep.IsStreaming() {
 			fmt.Printf(" (streaming: %s)", ep.StreamMode.String())
 		}
