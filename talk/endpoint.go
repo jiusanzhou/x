@@ -38,6 +38,10 @@ type EndpointFunc func(ctx context.Context, request any) (response any, err erro
 // It receives a context, request, and a stream for bidirectional communication.
 type StreamEndpointFunc func(ctx context.Context, request any, stream Stream) error
 
+// MiddlewareFunc wraps an EndpointFunc to add pre/post processing logic.
+// It receives the next handler and returns a wrapped handler.
+type MiddlewareFunc func(next EndpointFunc) EndpointFunc
+
 // Endpoint represents a service endpoint with its routing and handler information.
 type Endpoint struct {
 	Name          string             // Method name (e.g., "GetUser")
@@ -46,6 +50,7 @@ type Endpoint struct {
 	Handler       EndpointFunc       // Handler for non-streaming endpoints
 	StreamHandler StreamEndpointFunc // Handler for streaming endpoints
 	StreamMode    StreamMode         // Streaming behavior
+	Middleware    []MiddlewareFunc   // Middleware chain applied to Handler
 
 	// Type information for request/response
 	RequestType  reflect.Type
@@ -57,6 +62,20 @@ type Endpoint struct {
 // IsStreaming returns true if the endpoint uses any form of streaming.
 func (e *Endpoint) IsStreaming() bool {
 	return e.StreamMode != StreamNone
+}
+
+// WrappedHandler returns the Handler with all middleware applied.
+// Middleware is applied in order: first middleware is outermost wrapper.
+func (e *Endpoint) WrappedHandler() EndpointFunc {
+	if e.Handler == nil || len(e.Middleware) == 0 {
+		return e.Handler
+	}
+	h := e.Handler
+	// Apply in reverse so that Middleware[0] is the outermost
+	for i := len(e.Middleware) - 1; i >= 0; i-- {
+		h = e.Middleware[i](h)
+	}
+	return h
 }
 
 // Clone creates a copy of the endpoint.
@@ -95,6 +114,13 @@ func WithMetadata(key string, value any) EndpointOption {
 			e.Metadata = make(map[string]any)
 		}
 		e.Metadata[key] = value
+	}
+}
+
+// WithMiddleware adds middleware functions to the endpoint.
+func WithMiddleware(mw ...MiddlewareFunc) EndpointOption {
+	return func(e *Endpoint) {
+		e.Middleware = append(e.Middleware, mw...)
 	}
 }
 

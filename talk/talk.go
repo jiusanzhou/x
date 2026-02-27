@@ -30,6 +30,7 @@ type Server struct {
 	extractor  Extractor
 	pathPrefix string
 	endpoints  []*Endpoint
+	middleware []MiddlewareFunc
 }
 
 // NewServer creates a new server with the given transport.
@@ -95,6 +96,13 @@ func (s *Server) Register(service any, opts ...RegisterOption) error {
 	if cfg.pathPrefix != "" {
 		for _, ep := range endpoints {
 			ep.Path = cfg.pathPrefix + ep.Path
+		}
+	}
+
+	// Apply server-level middleware to all endpoints
+	if len(s.middleware) > 0 {
+		for _, ep := range endpoints {
+			ep.Middleware = append(s.middleware, ep.Middleware...)
 		}
 	}
 
@@ -202,6 +210,13 @@ func WithExtractor(e Extractor) ServerOption {
 func WithPathPrefix(prefix string) ServerOption {
 	return func(s *Server) {
 		s.pathPrefix = prefix
+	}
+}
+
+// WithServerMiddleware adds middleware that will be applied to all endpoints.
+func WithServerMiddleware(mw ...MiddlewareFunc) ServerOption {
+	return func(s *Server) {
+		s.middleware = append(s.middleware, mw...)
 	}
 }
 

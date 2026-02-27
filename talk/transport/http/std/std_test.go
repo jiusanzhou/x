@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 	"time"
 
@@ -273,5 +274,251 @@ func TestCodecIntegration(t *testing.T) {
 	}
 	if c.ContentType() != "application/json" {
 		t.Errorf("ContentType() = %q, want %q", c.ContentType(), "application/json")
+	}
+}
+
+// --- Test types for new features ---
+
+type pathParamRequest struct {
+	NodeName  string `json:"nodeName" path:"nodeName"`
+	ModelName string `json:"modelName" path:"modelName"`
+}
+
+type queryParamRequest struct {
+	Status string `json:"status" query:"status"`
+	Node   string `json:"node" query:"node"`
+}
+
+type idStructRequest struct {
+	ID string `json:"id" path:"id"`
+}
+
+func TestServer_ArbitraryPathParams(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "CleanupModel",
+		Path:        "/nodes/{nodeName}/models/{modelName}",
+		Method:      "DELETE",
+		RequestType: reflect.TypeOf(pathParamRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r, ok := req.(pathParamRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected pathParamRequest, got %T", req)
+			}
+			return map[string]string{"nodeName": r.NodeName, "modelName": r.ModelName}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	ts := httptest.NewServer(server.mux)
+	defer ts.Close()
+
+	req, _ := http.NewRequest("DELETE", ts.URL+"/nodes/gpu-001/models/llama-70b", nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+
+	var result map[string]string
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if result["nodeName"] != "gpu-001" {
+		t.Errorf("nodeName = %q, want %q", result["nodeName"], "gpu-001")
+	}
+	if result["modelName"] != "llama-70b" {
+		t.Errorf("modelName = %q, want %q", result["modelName"], "llama-70b")
+	}
+}
+
+func TestServer_QueryParams(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "ListTasks",
+		Path:        "/tasks",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(queryParamRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r, ok := req.(queryParamRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected queryParamRequest, got %T", req)
+			}
+			return map[string]string{"status": r.Status, "node": r.Node}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	ts := httptest.NewServer(server.mux)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/tasks?status=running&node=gpu-01")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result map[string]string
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if result["status"] != "running" {
+		t.Errorf("status = %q, want %q", result["status"], "running")
+	}
+	if result["node"] != "gpu-01" {
+		t.Errorf("node = %q, want %q", result["node"], "gpu-01")
+	}
+}
+
+func TestServer_StructInstantiationNoBody(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "GetItem",
+		Path:        "/items/{id}",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(idStructRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r, ok := req.(idStructRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected idStructRequest, got %T", req)
+			}
+			return map[string]string{"id": r.ID}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	ts := httptest.NewServer(server.mux)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/items/abc-123")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result map[string]string
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if result["id"] != "abc-123" {
+		t.Errorf("id = %q, want %q", result["id"], "abc-123")
+	}
+}
+
+func TestServer_BackwardCompatStringID(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	// No RequestType — backward compatible simple string extraction
+	ep := &talk.Endpoint{
+		Name:   "GetItem",
+		Path:   "/items/{id}",
+		Method: "GET",
+		Handler: func(ctx context.Context, req any) (any, error) {
+			id, _ := req.(string)
+			return &testResponse{Message: "found", ID: id}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	ts := httptest.NewServer(server.mux)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/items/456")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result testResponse
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if result.ID != "456" {
+		t.Errorf("ID = %q, want %q", result.ID, "456")
+	}
+}
+
+func TestServer_EndpointMiddleware(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	mwCalled := false
+	ep := &talk.Endpoint{
+		Name:   "Test",
+		Path:   "/test",
+		Method: "GET",
+		Handler: func(ctx context.Context, req any) (any, error) {
+			return &testResponse{Message: "original"}, nil
+		},
+		Middleware: []talk.MiddlewareFunc{
+			func(next talk.EndpointFunc) talk.EndpointFunc {
+				return func(ctx context.Context, req any) (any, error) {
+					mwCalled = true
+					resp, err := next(ctx, req)
+					// Modify response
+					if r, ok := resp.(*testResponse); ok {
+						r.Message = "modified-by-middleware"
+					}
+					return resp, err
+				}
+			},
+		},
+	}
+	server.registerEndpoint(ep)
+
+	ts := httptest.NewServer(server.mux)
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL + "/test")
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var result testResponse
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	if !mwCalled {
+		t.Error("middleware was not called")
+	}
+	if result.Message != "modified-by-middleware" {
+		t.Errorf("Message = %q, want %q", result.Message, "modified-by-middleware")
 	}
 }

@@ -157,7 +157,7 @@ func (s *Server) createJSONHandler(ep *talk.Endpoint) http.HandlerFunc {
 
 		req = s.extractPathParams(r, ep, req)
 
-		resp, err := ep.Handler(ctx, req)
+		resp, err := ep.WrappedHandler()(ctx, req)
 		if err != nil {
 			s.writeError(w, talk.ToError(err))
 			return
