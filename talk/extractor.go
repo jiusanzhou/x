@@ -98,6 +98,10 @@ func (e *reflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 		Metadata:   make(map[string]any),
 	}
 
+	if ann != nil && len(ann.middleware) > 0 {
+		endpoint.Metadata["middleware"] = ann.middleware
+	}
+
 	if methodType.NumIn() > 2 {
 		endpoint.RequestType = methodType.In(2)
 	}
@@ -307,6 +311,7 @@ type annotation struct {
 	method     string
 	streamMode StreamMode
 	skip       bool
+	middleware []string
 }
 
 var annotationRegex = regexp.MustCompile(`@talk\s*(.*)`)
@@ -340,9 +345,15 @@ func parseAnnotation(comment string) *annotation {
 			ann.streamMode = parseStreamMode(value)
 		case "skip", "ignore":
 			ann.skip = value == "true" || value == "1"
+		case "middleware":
+			for _, m := range strings.Split(value, ",") {
+				m = strings.TrimSpace(m)
+				if m != "" {
+					ann.middleware = append(ann.middleware, m)
+				}
+			}
 		}
 	}
-
 	return ann
 }
 

@@ -633,3 +633,128 @@ func TestNewClientFromConfig_UnknownType(t *testing.T) {
 		t.Error("expected error for unknown transport type")
 	}
 }
+
+func TestEndpoint_WrappedHandler(t *testing.T) {
+	called := []string{}
+
+	ep := &Endpoint{
+		Name: "Test",
+		Handler: func(ctx context.Context, req any) (any, error) {
+			called = append(called, "handler")
+			return "ok", nil
+		},
+		Middleware: []MiddlewareFunc{
+			func(next EndpointFunc) EndpointFunc {
+				return func(ctx context.Context, req any) (any, error) {
+					called = append(called, "mw1-before")
+					resp, err := next(ctx, req)
+					called = append(called, "mw1-after")
+					return resp, err
+				}
+			},
+			func(next EndpointFunc) EndpointFunc {
+				return func(ctx context.Context, req any) (any, error) {
+					called = append(called, "mw2-before")
+					resp, err := next(ctx, req)
+					called = append(called, "mw2-after")
+					return resp, err
+				}
+			},
+		},
+	}
+
+	h := ep.WrappedHandler()
+	resp, err := h(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp != "ok" {
+		t.Errorf("resp = %v, want %q", resp, "ok")
+	}
+
+	// Middleware[0] is outermost, so order should be: mw1-before, mw2-before, handler, mw2-after, mw1-after
+	expected := []string{"mw1-before", "mw2-before", "handler", "mw2-after", "mw1-after"}
+	if len(called) != len(expected) {
+		t.Fatalf("call sequence length = %d, want %d: %v", len(called), len(expected), called)
+	}
+	for i, v := range expected {
+		if called[i] != v {
+			t.Errorf("called[%d] = %q, want %q", i, called[i], v)
+		}
+	}
+}
+
+func TestEndpoint_WrappedHandler_NoMiddleware(t *testing.T) {
+	ep := &Endpoint{
+		Name: "Test",
+		Handler: func(ctx context.Context, req any) (any, error) {
+			return "ok", nil
+		},
+	}
+
+	h := ep.WrappedHandler()
+	if h == nil {
+		t.Fatal("WrappedHandler returned nil")
+	}
+	resp, _ := h(context.Background(), nil)
+	if resp != "ok" {
+		t.Errorf("resp = %v, want %q", resp, "ok")
+	}
+}
+
+func TestEndpoint_WrappedHandler_NilHandler(t *testing.T) {
+	ep := &Endpoint{Name: "Test"}
+	h := ep.WrappedHandler()
+	if h != nil {
+		t.Error("WrappedHandler should return nil when Handler is nil")
+	}
+}
+
+func TestServer_WithServerMiddleware(t *testing.T) {
+	mwCalled := false
+	mw := func(next EndpointFunc) EndpointFunc {
+		return func(ctx context.Context, req any) (any, error) {
+			mwCalled = true
+			return next(ctx, req)
+		}
+	}
+
+	transport := &mockTransport{}
+
+	// Use extractor to Register a service — middleware should be applied
+	s := NewServer(transport,
+		WithServerMiddleware(mw),
+		WithExtractor(&reflectExtractor{}),
+	)
+	svc := &testService{}
+	if err := s.Register(svc); err != nil {
+		t.Fatalf("Register failed: %v", err)
+	}
+
+	// Verify all extracted endpoints have the middleware
+	for _, ep := range s.Endpoints() {
+		if len(ep.Middleware) == 0 {
+			t.Errorf("endpoint %s missing middleware", ep.Name)
+		}
+	}
+
+	// Test middleware execution with an explicit handler endpoint
+	ep := &Endpoint{
+		Name: "TestMW",
+		Handler: func(ctx context.Context, req any) (any, error) {
+			return "result", nil
+		},
+		Middleware: []MiddlewareFunc{mw},
+	}
+	h := ep.WrappedHandler()
+	resp, err := h(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp != "result" {
+		t.Errorf("resp = %v, want %q", resp, "result")
+	}
+	if !mwCalled {
+		t.Error("server middleware was not called")
+	}
+}

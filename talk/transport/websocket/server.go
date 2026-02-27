@@ -161,7 +161,7 @@ func (s *Server) handleRequest(conn *websocket.Conn, stream *wsStream, ep *talk.
 		return
 	}
 
-	resp, err := ep.Handler(ctx, msg.Params)
+	resp, err := ep.WrappedHandler()(ctx, msg.Params)
 	if err != nil {
 		s.sendError(conn, msg.ID, talk.ToError(err))
 		return

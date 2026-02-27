@@ -509,3 +509,309 @@ func ExampleSwagger() {
 		log.Fatal(err)
 	}
 }
+
+// =============================================================================
+// Path Parameters Example
+// =============================================================================
+
+// GetNodeModelRequest demonstrates using `path` struct tags to extract
+// multiple path parameters from the URL.
+type GetNodeModelRequest struct {
+	NodeName  string `json:"nodeName" path:"nodeName"`
+	ModelName string `json:"modelName" path:"modelName"`
+}
+
+// GetNodeModelResponse is the response for GetNodeModel.
+type GetNodeModelResponse struct {
+	Node  string `json:"node"`
+	Model string `json:"model"`
+	Ready bool   `json:"ready"`
+}
+
+// nodeModelService demonstrates a service with path parameters.
+type nodeModelService struct{}
+
+// GetNodeModel handles GET /nodes/{nodeName}/models/{modelName}
+// The `path` struct tags on GetNodeModelRequest automatically bind URL path segments.
+func (s *nodeModelService) GetNodeModel(ctx context.Context, req *GetNodeModelRequest) (*GetNodeModelResponse, error) {
+	return &GetNodeModelResponse{
+		Node:  req.NodeName,
+		Model: req.ModelName,
+		Ready: true,
+	}, nil
+}
+
+// DeleteNodeModel handles DELETE /nodes/{nodeName}/models/{modelName}
+// Even DELETE requests with no body can receive path parameters via struct tags.
+func (s *nodeModelService) DeleteNodeModel(ctx context.Context, req *GetNodeModelRequest) error {
+	fmt.Printf("Deleting model %s from node %s\n", req.ModelName, req.NodeName)
+	return nil
+}
+
+// TalkAnnotations provides custom path patterns with multiple path parameters.
+func (s *nodeModelService) TalkAnnotations() map[string]string {
+	return map[string]string{
+		"GetNodeModel":    "@talk path=/nodes/{nodeName}/models/{modelName} method=GET",
+		"DeleteNodeModel": "@talk path=/nodes/{nodeName}/models/{modelName} method=DELETE",
+	}
+}
+
+// ExamplePathParams demonstrates using path parameters with struct tags.
+// Path segments like /nodes/{nodeName}/models/{modelName} are automatically
+// extracted and bound to request struct fields tagged with `path:"paramName"`.
+func ExamplePathParams() {
+	svc := &nodeModelService{}
+
+	cfg := x.TypedLazyConfig{
+		Type:   "http",
+		Config: json.RawMessage(`{"addr": ":8080"}`),
+	}
+
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := server.Register(svc, talk.WithPrefix("/api/v1")); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Path parameter endpoints:")
+	for _, ep := range server.Endpoints() {
+		fmt.Printf("  %s %s\n", ep.Method, ep.Path)
+	}
+
+	// Test with:
+	//   curl http://localhost:8080/api/v1/nodes/gpu-01/models/llama-70b
+	//   curl -X DELETE http://localhost:8080/api/v1/nodes/gpu-01/models/llama-70b
+
+	ctx := context.Background()
+	if err := server.Serve(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// =============================================================================
+// Query Parameters Example
+// =============================================================================
+
+// ListTasksRequest demonstrates using `query` struct tags to extract
+// query string parameters from the URL (e.g., /tasks?status=running&node=gpu-01).
+type ListTasksRequest struct {
+	Status string `json:"status" query:"status"`
+	Node   string `json:"node" query:"node"`
+	Limit  string `json:"limit" query:"limit"`
+}
+
+// Task represents a task entity.
+type Task struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+	Node   string `json:"node"`
+}
+
+// taskService demonstrates a service with query parameters.
+type taskService struct{}
+
+// ListTasks handles GET /tasks?status=running&node=gpu-01
+// The `query` struct tags on ListTasksRequest automatically bind URL query parameters.
+func (s *taskService) ListTasks(ctx context.Context, req *ListTasksRequest) ([]*Task, error) {
+	fmt.Printf("Listing tasks: status=%s, node=%s, limit=%s\n", req.Status, req.Node, req.Limit)
+	return []*Task{
+		{ID: "task-1", Status: req.Status, Node: req.Node},
+	}, nil
+}
+
+// ExampleQueryParams demonstrates using query parameters with struct tags.
+// Query parameters like ?status=running&node=gpu-01 are automatically
+// extracted and bound to request struct fields tagged with `query:"paramName"`.
+func ExampleQueryParams() {
+	svc := &taskService{}
+
+	cfg := x.TypedLazyConfig{
+		Type:   "http",
+		Config: json.RawMessage(`{"addr": ":8080"}`),
+	}
+
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := server.Register(svc, talk.WithPrefix("/api/v1")); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Query parameter endpoints:")
+	for _, ep := range server.Endpoints() {
+		fmt.Printf("  %s %s\n", ep.Method, ep.Path)
+	}
+
+	// Test with:
+	//   curl "http://localhost:8080/api/v1/tasks?status=running&node=gpu-01&limit=10"
+
+	ctx := context.Background()
+	if err := server.Serve(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// =============================================================================
+// Middleware Example
+// =============================================================================
+
+// LoggingMiddleware logs every request and response.
+func LoggingMiddleware() talk.MiddlewareFunc {
+	return func(next talk.EndpointFunc) talk.EndpointFunc {
+		return func(ctx context.Context, req any) (any, error) {
+			log.Printf("[LOG] request: %+v", req)
+			resp, err := next(ctx, req)
+			if err != nil {
+				log.Printf("[LOG] error: %v", err)
+			} else {
+				log.Printf("[LOG] response: %+v", resp)
+			}
+			return resp, err
+		}
+	}
+}
+
+// AuthMiddleware checks for an "authorized" key in context.
+// In a real application, you would validate JWT tokens, API keys, etc.
+func AuthMiddleware() talk.MiddlewareFunc {
+	return func(next talk.EndpointFunc) talk.EndpointFunc {
+		return func(ctx context.Context, req any) (any, error) {
+			// In a real app, extract and validate the token from context/headers.
+			// For this example, we just log and pass through.
+			log.Println("[AUTH] checking authorization")
+			return next(ctx, req)
+		}
+	}
+}
+
+// RecoveryMiddleware catches panics and converts them to errors.
+func RecoveryMiddleware() talk.MiddlewareFunc {
+	return func(next talk.EndpointFunc) talk.EndpointFunc {
+		return func(ctx context.Context, req any) (resp any, err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("[RECOVERY] caught panic: %v", r)
+					err = talk.NewError(talk.Internal, fmt.Sprintf("internal error: %v", r))
+				}
+			}()
+			return next(ctx, req)
+		}
+	}
+}
+
+// ExampleMiddleware demonstrates using middleware at both server and endpoint levels.
+func ExampleMiddleware() {
+	userSvc := NewUserService()
+
+	cfg := x.TypedLazyConfig{
+		Type:   "http",
+		Config: json.RawMessage(`{"addr": ":8080"}`),
+	}
+
+	// Server-level middleware applies to ALL registered endpoints.
+	server, err := talk.NewServerFromConfig(cfg,
+		talk.WithExtractor(extract.NewReflectExtractor()),
+		talk.WithServerMiddleware(
+			RecoveryMiddleware(), // outermost: catch panics
+			LoggingMiddleware(),  // log all requests
+		),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := server.Register(userSvc, talk.WithPrefix("/api/v1")); err != nil {
+		log.Fatal(err)
+	}
+
+	// Endpoint-level middleware applies only to specific endpoints.
+	server.RegisterEndpoints(
+		talk.NewEndpoint("admin-stats", func(ctx context.Context, req any) (any, error) {
+			return map[string]any{"users": 42, "requests": 1000}, nil
+		},
+			talk.WithPath("/admin/stats"),
+			talk.WithMethod("GET"),
+			talk.WithMiddleware(
+				AuthMiddleware(), // only this endpoint requires auth
+			),
+		),
+	)
+
+	fmt.Println("Middleware example endpoints:")
+	for _, ep := range server.Endpoints() {
+		mwCount := len(ep.Middleware)
+		fmt.Printf("  %s %s (%d middleware)\n", ep.Method, ep.Path, mwCount)
+	}
+
+	// Test with:
+	//   curl http://localhost:8080/api/v1/users          # recovery + logging
+	//   curl http://localhost:8080/admin/stats            # auth middleware
+	//   curl -X POST http://localhost:8080/api/v1/user \\
+	//     -H "Content-Type: application/json" \\
+	//     -d '{"name": "Alice", "email": "alice@example.com"}'
+
+	ctx := context.Background()
+	if err := server.Serve(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// =============================================================================
+// Annotation-Based Middleware Example
+// =============================================================================
+
+// protectedService demonstrates middleware configured via @talk annotations.
+type protectedService struct{}
+
+// PublicEndpoint is accessible without auth.
+func (s *protectedService) GetStatus(ctx context.Context) (map[string]string, error) {
+	return map[string]string{"status": "ok"}, nil
+}
+
+// AdminEndpoint requires auth and admin middleware (configured via annotation).
+func (s *protectedService) DeleteAllData(ctx context.Context) (map[string]string, error) {
+	return map[string]string{"deleted": "true"}, nil
+}
+
+// TalkAnnotations configures middleware via annotations.
+// The `middleware=auth,admin` annotation attaches named middleware to the endpoint.
+// The actual middleware functions must be registered separately.
+func (s *protectedService) TalkAnnotations() map[string]string {
+	return map[string]string{
+		"GetStatus":     "@talk path=/status method=GET",
+		"DeleteAllData": "@talk path=/admin/delete-all method=DELETE middleware=auth,admin",
+	}
+}
+
+// ExampleAnnotationMiddleware demonstrates configuring middleware via @talk annotations.
+func ExampleAnnotationMiddleware() {
+	svc := &protectedService{}
+
+	cfg := x.TypedLazyConfig{
+		Type:   "http",
+		Config: json.RawMessage(`{"addr": ":8080"}`),
+	}
+
+	server, err := talk.NewServerFromConfig(cfg, talk.WithExtractor(extract.NewReflectExtractor()))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err := server.Register(svc); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Annotation middleware endpoints:")
+	for _, ep := range server.Endpoints() {
+		mwNames := ""
+		if names, ok := ep.Metadata["middleware"]; ok {
+			mwNames = fmt.Sprintf(" [middleware: %v]", names)
+		}
+		fmt.Printf("  %s %s%s\n", ep.Method, ep.Path, mwNames)
+	}
+}

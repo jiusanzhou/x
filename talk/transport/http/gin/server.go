@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -221,10 +223,16 @@ func (s *Server) createJSONHandler(ep *talk.Endpoint) gin.HandlerFunc {
 			req = reflect.ValueOf(reqVal).Elem().Interface()
 		}
 
-		// Extract path parameters
-		req = s.extractPathParams(c, ep, req)
+		// Ensure request struct is instantiated for struct types even without body
+		if req == nil && ep.RequestType != nil && ep.RequestType.Kind() == reflect.Struct {
+			req = reflect.New(ep.RequestType).Elem().Interface()
+		}
 
-		resp, err := ep.Handler(ctx, req)
+		// Extract path parameters and query parameters
+		req = s.extractParams(c, ep, req)
+
+		handler := ep.WrappedHandler()
+		resp, err := handler(ctx, req)
 		if err != nil {
 			s.writeError(c, talk.ToError(err))
 			return
@@ -244,7 +252,10 @@ func (s *Server) createSSEHandler(ep *talk.Endpoint) gin.HandlerFunc {
 		c.Header("X-Accel-Buffering", "no")
 
 		var req any
-		req = s.extractPathParams(c, ep, req)
+		if ep.RequestType != nil && ep.RequestType.Kind() == reflect.Struct {
+			req = reflect.New(ep.RequestType).Elem().Interface()
+		}
+		req = s.extractParams(c, ep, req)
 
 		stream := &sseServerStream{
 			ctx:   ctx,
@@ -260,13 +271,71 @@ func (s *Server) createSSEHandler(ep *talk.Endpoint) gin.HandlerFunc {
 	}
 }
 
-func (s *Server) extractPathParams(c *gin.Context, ep *talk.Endpoint, req any) any {
-	// For simple ID parameter extraction
-	if strings.Contains(ep.Path, "{id}") {
-		id := c.Param("id")
-		if id != "" && req == nil {
-			return id
+// pathParamRegex matches {paramName} patterns in endpoint paths.
+var pathParamRegex = regexp.MustCompile(`\{(\w+)\}`)
+
+// extractParams populates the request with path parameters and query parameters.
+// It supports both struct types (via `path` and `query` struct tags) and simple
+// string types (backward-compatible {id} extraction).
+func (s *Server) extractParams(c *gin.Context, ep *talk.Endpoint, req any) any {
+	// extract {id} as a raw value.
+	if ep.RequestType == nil || isSimpleType(ep.RequestType) {
+		if strings.Contains(ep.Path, "{id}") {
+			id := c.Param("id")
+			if id != "" && req == nil {
+				return id
+			}
 		}
+		return req
+	}
+
+	if req == nil {
+		return req
+	}
+
+	// For struct types, use reflection to populate fields from path/query params
+	v := reflect.ValueOf(&req).Elem()
+	structVal := reflect.New(ep.RequestType).Elem()
+	structVal.Set(reflect.ValueOf(req))
+
+	t := ep.RequestType
+	changed := false
+
+	// Extract path parameters using `path` struct tag
+	paramNames := pathParamRegex.FindAllStringSubmatch(ep.Path, -1)
+	for _, match := range paramNames {
+		paramName := match[1]
+		paramValue := c.Param(paramName)
+		if paramValue == "" {
+			continue
+		}
+		if setStructFieldByTag(structVal, t, "path", paramName, paramValue) {
+			changed = true
+		}
+	}
+
+	// Extract query parameters using `query` struct tag
+	queryValues := c.Request.URL.Query()
+	if len(queryValues) > 0 {
+		for i := 0; i < t.NumField(); i++ {
+			field := t.Field(i)
+			tag := field.Tag.Get("query")
+			if tag == "" || tag == "-" {
+				continue
+			}
+			qv := queryValues.Get(tag)
+			if qv == "" {
+				continue
+			}
+			if setFieldValue(structVal.Field(i), qv) {
+				changed = true
+			}
+		}
+	}
+
+	if changed {
+		v.Set(structVal)
+		return v.Interface()
 	}
 	return req
 }
@@ -301,6 +370,72 @@ func convertPathParams(path string) string {
 		result = result[:start] + ":" + param + result[start+end+1:]
 	}
 	return result
+}
+
+// setStructFieldByTag finds a struct field by the given tag name and key,
+// and sets its value from the string parameter.
+func setStructFieldByTag(v reflect.Value, t reflect.Type, tagName, tagValue, paramValue string) bool {
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get(tagName)
+		if tag == tagValue {
+			return setFieldValue(v.Field(i), paramValue)
+		}
+		// Fallback: match by json tag name
+		if tag == "" {
+			jsonTag := field.Tag.Get("json")
+			if jsonTag != "" {
+				name := strings.Split(jsonTag, ",")[0]
+				if name == tagValue {
+					return setFieldValue(v.Field(i), paramValue)
+				}
+			}
+		}
+	}
+	return false
+}
+
+// setFieldValue sets a reflect.Value from a string, supporting common types.
+func setFieldValue(field reflect.Value, value string) bool {
+	if !field.CanSet() {
+		return false
+	}
+	switch field.Kind() {
+	case reflect.String:
+		field.SetString(value)
+		return true
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if n, err := strconv.ParseInt(value, 10, 64); err == nil {
+			field.SetInt(n)
+			return true
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if n, err := strconv.ParseUint(value, 10, 64); err == nil {
+			field.SetUint(n)
+			return true
+		}
+	case reflect.Float32, reflect.Float64:
+		if f, err := strconv.ParseFloat(value, 64); err == nil {
+			field.SetFloat(f)
+			return true
+		}
+	case reflect.Bool:
+		if b, err := strconv.ParseBool(value); err == nil {
+			field.SetBool(b)
+			return true
+		}
+	}
+	return false
+}
+
+func isSimpleType(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.String, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return true
+	default:
+		return false
+	}
 }
 
 type sseServerStream struct {

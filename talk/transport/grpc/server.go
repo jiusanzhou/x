@@ -174,7 +174,7 @@ func (s *Server) createUnaryHandler(ep *talk.Endpoint) func(srv any, ctx context
 		}
 
 		handler := func(ctx context.Context, req any) (any, error) {
-			resp, err := ep.Handler(ctx, req)
+			resp, err := ep.WrappedHandler()(ctx, req)
 			if err != nil {
 				return nil, s.toGRPCError(err)
 			}
