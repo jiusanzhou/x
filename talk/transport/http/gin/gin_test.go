@@ -719,3 +719,54 @@ func TestServer_QueryParamsJSONFallback(t *testing.T) {
 		t.Errorf("name = %v, want %q", result["name"], "hello")
 	}
 }
+
+func TestServer_PostBodyNotOverriddenByQueryJSONFallback(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	router := gin.New()
+	server.engine = router
+
+	ep := &talk.Endpoint{
+		Name:        "CreateItem",
+		Path:        "/items",
+		Method:      "POST",
+		RequestType: reflect.TypeOf(jsonOnlyQueryRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r, ok := req.(jsonOnlyQueryRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected jsonOnlyQueryRequest, got %T", req)
+			}
+			return map[string]any{"page": r.Page, "size": r.Size, "name": r.Name}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	// POST with body AND query params that share the same json tag names.
+	// Body values must NOT be overridden by query params via json fallback.
+	body := strings.NewReader(`{"page":5,"size":50,"name":"from-body"}`)
+	req, _ := http.NewRequest("POST", "/items?page=99&size=99&name=from-query", body)
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	// Body values should win — query params must NOT override via json fallback
+	if result["page"] != float64(5) {
+		t.Errorf("page = %v, want 5 (from body, not query)", result["page"])
+	}
+	if result["size"] != float64(50) {
+		t.Errorf("size = %v, want 50 (from body, not query)", result["size"])
+	}
+	if result["name"] != "from-body" {
+		t.Errorf("name = %v, want %q (from body, not query)", result["name"], "from-body")
+	}
+}
