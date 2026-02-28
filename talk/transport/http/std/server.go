@@ -325,12 +325,25 @@ func (s *Server) extractParams(r *http.Request, ep *talk.Endpoint, req any) any 
 		}
 	}
 
-	// Extract query parameters using `query` struct tag
+	// Extract query parameters using `query` struct tag, falling back to `json` tag.
+	// JSON fallback only applies to methods without a body (GET, DELETE, HEAD, OPTIONS)
+	// to prevent query params from overriding body-parsed values on POST/PUT/PATCH.
+	bodylessMethod := r.Method == "GET" || r.Method == "DELETE" || r.Method == "HEAD" || r.Method == "OPTIONS"
 	queryValues := r.URL.Query()
 	if len(queryValues) > 0 {
 		for i := 0; i < t.NumField(); i++ {
 			field := t.Field(i)
 			tag := field.Tag.Get("query")
+			if tag == "" || tag == "-" {
+				if !bodylessMethod {
+					continue
+				}
+				// Fallback to json tag name only for bodyless methods
+				tag = field.Tag.Get("json")
+				if idx := strings.Index(tag, ","); idx != -1 {
+					tag = tag[:idx]
+				}
+			}
 			if tag == "" || tag == "-" {
 				continue
 			}
