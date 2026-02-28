@@ -666,3 +666,56 @@ func TestServer_EndpointMiddleware(t *testing.T) {
 		t.Errorf("Message = %q, want %q", result.Message, "modified-by-middleware")
 	}
 }
+
+// jsonOnlyQueryRequest has only json tags (no query tags) to test fallback.
+type jsonOnlyQueryRequest struct {
+	Page int    `json:"page"`
+	Size int    `json:"size"`
+	Name string `json:"name,omitempty"`
+}
+
+func TestServer_QueryParamsJSONFallback(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	router := gin.New()
+	server.engine = router
+
+	ep := &talk.Endpoint{
+		Name:        "ListItems",
+		Path:        "/items",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(jsonOnlyQueryRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r, ok := req.(jsonOnlyQueryRequest)
+			if !ok {
+				return nil, fmt.Errorf("expected jsonOnlyQueryRequest, got %T", req)
+			}
+			return map[string]any{"page": r.Page, "size": r.Size, "name": r.Name}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/items?page=2&size=20&name=hello", nil)
+	router.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["page"] != float64(2) {
+		t.Errorf("page = %v, want 2", result["page"])
+	}
+	if result["size"] != float64(20) {
+		t.Errorf("size = %v, want 20", result["size"])
+	}
+	if result["name"] != "hello" {
+		t.Errorf("name = %v, want %q", result["name"], "hello")
+	}
+}

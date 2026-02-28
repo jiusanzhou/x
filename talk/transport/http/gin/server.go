@@ -314,12 +314,21 @@ func (s *Server) extractParams(c *gin.Context, ep *talk.Endpoint, req any) any {
 		}
 	}
 
-	// Extract query parameters using `query` struct tag
+	// Extract query parameters using `query` struct tag, falling back to `json` tag.
+	// This allows GET endpoints to bind ?page=1&size=10 to struct fields
+	// tagged with either `query:"page"` or `json:"page"`.
 	queryValues := c.Request.URL.Query()
 	if len(queryValues) > 0 {
 		for i := 0; i < t.NumField(); i++ {
 			field := t.Field(i)
 			tag := field.Tag.Get("query")
+			if tag == "" || tag == "-" {
+				// Fallback to json tag name for query binding
+				tag = field.Tag.Get("json")
+				if idx := strings.Index(tag, ","); idx != -1 {
+					tag = tag[:idx]
+				}
+			}
 			if tag == "" || tag == "-" {
 				continue
 			}
