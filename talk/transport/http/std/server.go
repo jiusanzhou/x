@@ -229,6 +229,9 @@ func (s *Server) createJSONHandler(ep *talk.Endpoint) http.HandlerFunc {
 		// Extract path parameters and query parameters
 		req = s.extractParams(r, ep, req)
 
+		// Inject endpoint into context for middleware (auth, etc.)
+		ctx = talk.WithEndpointContext(ctx, ep)
+
 		handler := ep.WrappedHandler()
 		resp, err := handler(ctx, req)
 		if err != nil {

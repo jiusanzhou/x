@@ -141,4 +141,122 @@ func TestFactory_Create_UnknownType(t *testing.T) {
 	if err == nil {
 		t.Error("Create() should return error for unknown type")
 	}
+	// Error should mention registered types
+	if err.Error() != `no creator for type "unknown" (no types registered)` {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestFactory_Create_UnknownType_WithRegistered(t *testing.T) {
+	f := NewFactory[TestPlugin, TestOption]()
+
+	creator := func(cfg x.TypedLazyConfig, opts ...TestOption) (TestPlugin, error) {
+		return &testPlugin{name: cfg.Name}, nil
+	}
+	f.Register("alpha", creator)
+	f.Register("beta", creator)
+
+	cfg := x.TypedLazyConfig{Type: "gamma", Name: "plugin"}
+	_, err := f.Create(cfg)
+	if err == nil {
+		t.Fatal("Create() should return error for unknown type")
+	}
+	errStr := err.Error()
+	if !(contains(errStr, "alpha") && contains(errStr, "beta")) {
+		t.Errorf("error should list registered types, got: %v", errStr)
+	}
+}
+
+func TestFactory_MustCreate(t *testing.T) {
+	f := NewFactory[TestPlugin, TestOption]()
+
+	creator := func(cfg x.TypedLazyConfig, opts ...TestOption) (TestPlugin, error) {
+		return &testPlugin{name: cfg.Name}, nil
+	}
+	f.Register("test", creator)
+
+	cfg := x.TypedLazyConfig{Type: "test", Name: "ok"}
+	plugin := f.MustCreate(cfg)
+	if plugin.Name() != "ok" {
+		t.Errorf("MustCreate() Name() = %q, want %q", plugin.Name(), "ok")
+	}
+}
+
+func TestFactory_MustCreate_Panics(t *testing.T) {
+	f := NewFactory[TestPlugin, TestOption]()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("MustCreate() should panic for unknown type")
+		}
+	}()
+
+	cfg := x.TypedLazyConfig{Type: "nope"}
+	f.MustCreate(cfg)
+}
+
+func TestFactory_Has(t *testing.T) {
+	f := NewFactory[TestPlugin, TestOption]()
+
+	creator := func(cfg x.TypedLazyConfig, opts ...TestOption) (TestPlugin, error) {
+		return &testPlugin{name: cfg.Name}, nil
+	}
+	f.Register("test", creator, "alias")
+
+	if !f.Has("test") {
+		t.Error("Has(\"test\") should be true")
+	}
+	if !f.Has("alias") {
+		t.Error("Has(\"alias\") should be true")
+	}
+	if f.Has("nope") {
+		t.Error("Has(\"nope\") should be false")
+	}
+}
+
+func TestFactory_List(t *testing.T) {
+	f := NewFactory[TestPlugin, TestOption]()
+
+	creator := func(cfg x.TypedLazyConfig, opts ...TestOption) (TestPlugin, error) {
+		return &testPlugin{name: cfg.Name}, nil
+	}
+	f.Register("beta", creator, "b")
+	f.Register("alpha", creator, "a")
+
+	list := f.List()
+	if len(list) != 2 {
+		t.Fatalf("List() len = %d, want 2", len(list))
+	}
+	// Should be sorted, no aliases
+	if list[0] != "alpha" || list[1] != "beta" {
+		t.Errorf("List() = %v, want [alpha beta]", list)
+	}
+}
+
+func TestFactory_Types(t *testing.T) {
+	f := NewFactory[TestPlugin, TestOption]()
+
+	creator := func(cfg x.TypedLazyConfig, opts ...TestOption) (TestPlugin, error) {
+		return &testPlugin{name: cfg.Name}, nil
+	}
+	f.Register("beta", creator, "b")
+	f.Register("alpha", creator, "a")
+
+	types := f.Types()
+	if len(types) != 4 {
+		t.Fatalf("Types() len = %d, want 4", len(types))
+	}
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(s) > 0 && containsStr(s, sub))
+}
+
+func containsStr(s, sub string) bool {
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }
