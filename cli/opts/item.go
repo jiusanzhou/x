@@ -155,6 +155,9 @@ func (i *item) Set(s string) error {
 		if err := fv.Set(s); err != nil {
 			return err
 		}
+	} else if elem.Kind() == reflect.Ptr && elem.Elem().Kind() == reflect.String {
+		// string pointers: assign directly (Sscanf stops at whitespace)
+		elem.Elem().SetString(s)
 	} else if elem.Kind() == reflect.Ptr {
 		//magic set with scanf
 		n, err := fmt.Sscanf(s, "%v", v)

@@ -136,3 +136,14 @@ func AutoLoadEnv(paths ...string) Option {
 	}
 	return LoadEnv(opts...)
 }
+
+// MustLoadEnvFiles loads .env and .env.local from the current directory.
+// Call this early in main() before cli.FromStruct or cli.New, so that
+// env values are available when opts parses struct tags.
+func MustLoadEnvFiles(paths ...string) {
+	opts := newEnvOptions()
+	if len(paths) > 0 {
+		opts.paths = paths
+	}
+	loadEnvFiles(opts)
+}
