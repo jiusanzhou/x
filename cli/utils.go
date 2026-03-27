@@ -26,7 +26,11 @@ func _parseGlobalFlags(nn []opts.Opts) {
 	for _, n := range nn {
 		for _, o := range n.Opts() {
 			if !o.HasSet() && o.FromEnv() {
-				o.Item().Set(os.Getenv(o.EnvName()))
+				v := os.Getenv(o.EnvName())
+				if v == "" {
+					continue
+				}
+				o.Item().Set(v)
 			}
 		}
 	}
@@ -36,7 +40,11 @@ func _parseFlags(nn []opts.Opts) {
 	for _, n := range nn {
 		for _, o := range n.Opts() {
 			if !o.HasSet() && o.FromEnv() {
-				o.Item().Set(os.Getenv(o.EnvName()))
+				v := os.Getenv(o.EnvName())
+				if v == "" {
+					continue
+				}
+				o.Item().Set(v)
 			}
 		}
 	}

@@ -770,3 +770,398 @@ func TestServer_PostBodyNotOverriddenByQueryJSONFallback(t *testing.T) {
 		t.Errorf("name = %v, want %q (from body, not query)", result["name"], "from-body")
 	}
 }
+
+// --- Additional parameter parsing test types ---
+
+type combinedRequest struct {
+	NodeName string `json:"nodeName" path:"nodeName"`
+	Status   string `json:"status" query:"status"`
+	Page     int    `json:"page" query:"page"`
+}
+
+type intIDRequest struct {
+	ID int64 `json:"id" path:"id"`
+}
+
+type boolQueryRequest struct {
+	Verbose bool   `json:"verbose" query:"verbose"`
+	Name    string `json:"name" query:"name"`
+}
+
+type emptyQueryRequest struct {
+	Status string `json:"status" query:"status"`
+	Page   int    `json:"page" query:"page"`
+}
+
+type updateRequest struct {
+	ID   string `json:"id" path:"id"`
+	Name string `json:"name"`
+	Age  int    `json:"age"`
+}
+
+type threeParamRequest struct {
+	Org    string `json:"org" path:"org"`
+	Team   string `json:"team" path:"team"`
+	Member string `json:"member" path:"member"`
+}
+
+type postWithQueryRequest struct {
+	Filter string `json:"filter" query:"filter"`
+	Body   string `json:"body"`
+}
+
+type uintRequest struct {
+	Count uint32 `json:"count" path:"count"`
+}
+
+type floatQueryRequest struct {
+	MinScore float64 `json:"minScore" query:"minScore"`
+}
+
+type ssePathRequest struct {
+	RoomID string `json:"roomId" path:"roomId"`
+}
+
+func TestServer_PathAndQueryCombined(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "GetNodeTasks",
+		Path:        "/nodes/{nodeName}/tasks",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(combinedRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(combinedRequest)
+			return map[string]any{"nodeName": r.NodeName, "status": r.Status, "page": r.Page}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/nodes/worker-1/tasks?status=running&page=2", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["nodeName"] != "worker-1" {
+		t.Errorf("nodeName = %v, want %q", result["nodeName"], "worker-1")
+	}
+	if result["status"] != "running" {
+		t.Errorf("status = %v, want %q", result["status"], "running")
+	}
+	if result["page"] != float64(2) {
+		t.Errorf("page = %v, want 2", result["page"])
+	}
+}
+
+func TestServer_IntPathParam(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "GetItem",
+		Path:        "/items/{id}",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(intIDRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(intIDRequest)
+			return map[string]int64{"id": r.ID}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/items/42", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["id"] != float64(42) {
+		t.Errorf("id = %v, want 42", result["id"])
+	}
+}
+
+func TestServer_BoolQueryParam(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "Search",
+		Path:        "/search",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(boolQueryRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(boolQueryRequest)
+			return map[string]any{"verbose": r.Verbose, "name": r.Name}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/search?verbose=true&name=test", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["verbose"] != true {
+		t.Errorf("verbose = %v, want true", result["verbose"])
+	}
+	if result["name"] != "test" {
+		t.Errorf("name = %v, want %q", result["name"], "test")
+	}
+}
+
+func TestServer_EmptyQueryParams(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "ListItems",
+		Path:        "/items-empty",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(emptyQueryRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(emptyQueryRequest)
+			return map[string]any{"status": r.Status, "page": r.Page}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/items-empty", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["status"] != "" {
+		t.Errorf("status = %v, want empty string", result["status"])
+	}
+	if result["page"] != float64(0) {
+		t.Errorf("page = %v, want 0", result["page"])
+	}
+}
+
+func TestServer_PostBodyWithPathParams(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "UpdateUser",
+		Path:        "/users/{id}",
+		Method:      "PUT",
+		RequestType: reflect.TypeOf(updateRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(updateRequest)
+			return map[string]any{"id": r.ID, "name": r.Name, "age": r.Age}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	body := strings.NewReader(`{"name":"bob","age":30}`)
+	req, _ := http.NewRequest("PUT", "/users/usr-123", body)
+	req.Header.Set("Content-Type", "application/json")
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["id"] != "usr-123" {
+		t.Errorf("id = %v, want %q", result["id"], "usr-123")
+	}
+	if result["name"] != "bob" {
+		t.Errorf("name = %v, want %q", result["name"], "bob")
+	}
+	if result["age"] != float64(30) {
+		t.Errorf("age = %v, want 30", result["age"])
+	}
+}
+
+func TestServer_MultiplePathParams(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "GetMember",
+		Path:        "/orgs/{org}/teams/{team}/members/{member}",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(threeParamRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(threeParamRequest)
+			return map[string]string{"org": r.Org, "team": r.Team, "member": r.Member}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/orgs/acme/teams/backend/members/alice", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]string
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["org"] != "acme" {
+		t.Errorf("org = %q, want %q", result["org"], "acme")
+	}
+	if result["team"] != "backend" {
+		t.Errorf("team = %q, want %q", result["team"], "backend")
+	}
+	if result["member"] != "alice" {
+		t.Errorf("member = %q, want %q", result["member"], "alice")
+	}
+}
+
+func TestServer_QueryParamWithExplicitQueryTag(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "SearchPosts",
+		Path:        "/search-posts",
+		Method:      "POST",
+		RequestType: reflect.TypeOf(postWithQueryRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(postWithQueryRequest)
+			return map[string]string{"filter": r.Filter, "body": r.Body}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	body := strings.NewReader(`{"body":"content"}`)
+	req, _ := http.NewRequest("POST", "/search-posts?filter=active", body)
+	req.Header.Set("Content-Type", "application/json")
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]string
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["filter"] != "active" {
+		t.Errorf("filter = %q, want %q", result["filter"], "active")
+	}
+	if result["body"] != "content" {
+		t.Errorf("body = %q, want %q", result["body"], "content")
+	}
+}
+
+func TestServer_UintPathParam(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "GetStats",
+		Path:        "/stats/{count}",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(uintRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(uintRequest)
+			return map[string]uint32{"count": r.Count}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/stats/999", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["count"] != float64(999) {
+		t.Errorf("count = %v, want 999", result["count"])
+	}
+}
+
+func TestServer_FloatQueryParam(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	ep := &talk.Endpoint{
+		Name:        "GetResults",
+		Path:        "/results",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(floatQueryRequest{}),
+		Handler: func(ctx context.Context, req any) (any, error) {
+			r := req.(floatQueryRequest)
+			return map[string]float64{"minScore": r.MinScore}, nil
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/results?minScore=0.75", nil)
+	server.engine.ServeHTTP(w, req)
+
+	var result map[string]any
+	json.NewDecoder(w.Body).Decode(&result)
+
+	if result["minScore"] != 0.75 {
+		t.Errorf("minScore = %v, want 0.75", result["minScore"])
+	}
+}
+
+func TestServer_SSEStreamingWithPathParams(t *testing.T) {
+	cfg := x.TypedLazyConfig{Config: json.RawMessage(`{"addr": ":0"}`)}
+	server, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	var capturedRoomID string
+	ep := &talk.Endpoint{
+		Name:        "WatchRoom",
+		Path:        "/rooms/{roomId}/events",
+		Method:      "GET",
+		RequestType: reflect.TypeOf(ssePathRequest{}),
+		StreamMode:  talk.StreamServerSide,
+		StreamHandler: func(ctx context.Context, req any, stream talk.Stream) error {
+			r := req.(ssePathRequest)
+			capturedRoomID = r.RoomID
+			return stream.Send(map[string]string{"roomId": r.RoomID})
+		},
+	}
+	server.registerEndpoint(ep)
+
+	w := httptest.NewRecorder()
+	req, _ := http.NewRequest("GET", "/rooms/room-42/events", nil)
+	server.engine.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if capturedRoomID != "room-42" {
+		t.Errorf("roomId = %q, want %q", capturedRoomID, "room-42")
+	}
+}
