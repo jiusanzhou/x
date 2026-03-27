@@ -130,7 +130,12 @@ func (e *ReflectExtractor) extractMethod(svcValue reflect.Value, method reflect.
 
 	// Extract request/response types
 	if methodType.NumIn() > 2 {
-		endpoint.RequestType = methodType.In(2)
+		reqType := methodType.In(2)
+		// Dereference pointer types so downstream code can safely call NumField etc.
+		if reqType.Kind() == reflect.Ptr {
+			reqType = reqType.Elem()
+		}
+		endpoint.RequestType = reqType
 	}
 	if methodType.NumOut() > 1 {
 		respType := methodType.Out(0)
