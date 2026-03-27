@@ -298,10 +298,15 @@ func (s *Server) extractParams(c *gin.Context, ep *talk.Endpoint, req any) any {
 
 	// For struct types, use reflection to populate fields from path/query params
 	v := reflect.ValueOf(&req).Elem()
-	structVal := reflect.New(ep.RequestType).Elem()
+	// Dereference pointer types — ep.RequestType may be *SomeRequest from methodType.In(2)
+	reqType := ep.RequestType
+	if reqType.Kind() == reflect.Ptr {
+		reqType = reqType.Elem()
+	}
+	structVal := reflect.New(reqType).Elem()
 	structVal.Set(reflect.ValueOf(req))
 
-	t := ep.RequestType
+	t := reqType
 	changed := false
 
 	// Extract path parameters using `path` struct tag
