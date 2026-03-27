@@ -117,12 +117,10 @@ func (s *Server) RegisterEndpoints(endpoints []*talk.Endpoint) {
 func (s *Server) Serve(ctx context.Context, endpoints []*talk.Endpoint) error {
 	s.RegisterEndpoints(endpoints)
 
-	if s.externalMux {
-		<-ctx.Done()
-		return nil
-	}
+	// externalMux just means 'use my mux', we still start the HTTP server.
+	// Only externalServer means 'don't start any server'.
 
-	if s.server == nil {
+	if s.server == nil && !s.externalServer {
 		s.server = &http.Server{
 			Addr:         s.config.Addr,
 			Handler:      s.mux,

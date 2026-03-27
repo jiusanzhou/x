@@ -128,6 +128,11 @@ func (s *Server) RegisterWithPrefix(service any, prefix string) error {
 	return s.Register(service, WithPrefix(prefix))
 }
 
+// Transport returns the underlying transport.
+func (s *Server) Transport() Transport {
+	return s.transport
+}
+
 // Endpoints returns all registered endpoints.
 func (s *Server) Endpoints() []*Endpoint {
 	return s.endpoints

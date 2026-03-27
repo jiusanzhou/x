@@ -632,3 +632,299 @@ func TestServer_PostBodyNotOverriddenByQueryJSONFallback(t *testing.T) {
 		t.Errorf("name = %v, want %q (from body, not query)", result["name"], "from-body")
 	}
 }
+
+func TestServer_WithServeMuxStillStartsServer(t *testing.T) {
+	mux := http.NewServeMux()
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg, WithServeMux(mux))
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	endpoints := []*talk.Endpoint{
+		{
+			Name:   "Hello",
+			Path:   "/hello",
+			Method: "GET",
+			Handler: func(ctx context.Context, req any) (any, error) {
+				return &testResponse{Message: "hello from external mux"}, nil
+			},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+
+	// Serve should NOT block forever; it should start the HTTP server
+	// and return when context is cancelled.
+	err = server.Serve(ctx, endpoints)
+	if err != nil && err != context.DeadlineExceeded {
+		t.Errorf("Serve returned unexpected error: %v", err)
+	}
+
+	// Verify externalMux is true but server was still created
+	if !server.externalMux {
+		t.Error("expected externalMux to be true")
+	}
+	if server.server == nil {
+		t.Error("expected server to be created even with externalMux")
+	}
+}
+
+func TestServer_WithHTTPServerDoesNotStart(t *testing.T) {
+	httpServer := &http.Server{}
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	server, err := NewServer(cfg, WithHTTPServer(httpServer))
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	endpoints := []*talk.Endpoint{
+		{
+			Name:   "Hello",
+			Path:   "/hello",
+			Method: "GET",
+			Handler: func(ctx context.Context, req any) (any, error) {
+				return &testResponse{Message: "hello"}, nil
+			},
+		},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// With externalServer, Serve should block on ctx.Done() without starting
+	err = server.Serve(ctx, endpoints)
+	if err != nil {
+		t.Errorf("Serve returned unexpected error: %v", err)
+	}
+}
+
+func TestServer_TransportAccessor(t *testing.T) {
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(`{"addr": ":0"}`),
+	}
+
+	transport, err := NewServer(cfg)
+	if err != nil {
+		t.Fatalf("NewServer failed: %v", err)
+	}
+
+	srv := talk.NewServer(transport)
+	got := srv.Transport()
+	if got != transport {
+		t.Errorf("Transport() returned different transport")
+	}
+}
+
+func TestDeriveClientPath(t *testing.T) {
+	tests := []struct {
+		name       string
+		wantMethod string
+		wantPath   string
+	}{
+		{"GetUser", "GET", "/user/{id}"},
+		{"ListUsers", "GET", "/users"},
+		{"CreateUser", "POST", "/user"},
+		{"UpdateUser", "PUT", "/user/{id}"},
+		{"DeleteUser", "DELETE", "/user/{id}"},
+		{"WatchUsers", "GET", "/users/watch"},
+		{"DoSomething", "POST", "/do-something"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			method, path := deriveClientPath(tt.name)
+			if method != tt.wantMethod {
+				t.Errorf("method = %q, want %q", method, tt.wantMethod)
+			}
+			if path != tt.wantPath {
+				t.Errorf("path = %q, want %q", path, tt.wantPath)
+			}
+		})
+	}
+}
+
+func TestClient_InvokeWithMethodName(t *testing.T) {
+	var capturedMethod, capturedPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedMethod = r.Method
+		capturedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&testResponse{Message: "ok"})
+	}))
+	defer ts.Close()
+
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(fmt.Sprintf(`{"addr": %q}`, ts.URL)),
+	}
+
+	client, err := NewClient(cfg)
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	defer client.Close()
+
+	var resp testResponse
+	err = client.Invoke(context.Background(), "CreateUser", map[string]string{"name": "alice"}, &resp)
+	if err != nil {
+		t.Fatalf("Invoke failed: %v", err)
+	}
+
+	if capturedMethod != "POST" {
+		t.Errorf("method = %q, want POST", capturedMethod)
+	}
+	if capturedPath != "/user" {
+		t.Errorf("path = %q, want /user", capturedPath)
+	}
+}
+
+func TestClient_InvokeDirectPath(t *testing.T) {
+	var capturedMethod, capturedPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedMethod = r.Method
+		capturedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&testResponse{Message: "ok"})
+	}))
+	defer ts.Close()
+
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(fmt.Sprintf(`{"addr": %q}`, ts.URL)),
+	}
+
+	client, err := NewClient(cfg)
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	defer client.Close()
+
+	var resp testResponse
+	err = client.Invoke(context.Background(), "/custom/path", nil, &resp)
+	if err != nil {
+		t.Fatalf("Invoke failed: %v", err)
+	}
+
+	// Direct paths should use POST
+	if capturedMethod != "POST" {
+		t.Errorf("method = %q, want POST", capturedMethod)
+	}
+	if capturedPath != "/custom/path" {
+		t.Errorf("path = %q, want /custom/path", capturedPath)
+	}
+}
+
+func TestClient_InvokeWithPathPrefix(t *testing.T) {
+	var capturedMethod, capturedPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedMethod = r.Method
+		capturedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&testResponse{Message: "ok"})
+	}))
+	defer ts.Close()
+
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(fmt.Sprintf(`{"addr": %q}`, ts.URL)),
+	}
+
+	client, err := NewClient(cfg, WithClientPathPrefix("/api/v1"))
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	defer client.Close()
+
+	var resp testResponse
+	err = client.Invoke(context.Background(), "ListUsers", nil, &resp)
+	if err != nil {
+		t.Fatalf("Invoke failed: %v", err)
+	}
+
+	if capturedMethod != "GET" {
+		t.Errorf("method = %q, want GET", capturedMethod)
+	}
+	if capturedPath != "/api/v1/users" {
+		t.Errorf("path = %q, want /api/v1/users", capturedPath)
+	}
+}
+
+func TestClient_InvokeGetWithID(t *testing.T) {
+	var capturedPath string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(&testResponse{Message: "ok"})
+	}))
+	defer ts.Close()
+
+	cfg := x.TypedLazyConfig{
+		Config: json.RawMessage(fmt.Sprintf(`{"addr": %q}`, ts.URL)),
+	}
+
+	client, err := NewClient(cfg)
+	if err != nil {
+		t.Fatalf("NewClient failed: %v", err)
+	}
+	defer client.Close()
+
+	var resp testResponse
+	err = client.Invoke(context.Background(), "GetUser", "abc-123", &resp)
+	if err != nil {
+		t.Fatalf("Invoke failed: %v", err)
+	}
+
+	if capturedPath != "/user/abc-123" {
+		t.Errorf("path = %q, want /user/abc-123", capturedPath)
+	}
+}
+
+func TestExtractResource(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{"GetUser", "user"},
+		{"ListOrders", "orders"},
+		{"CreateItem", "item"},
+		{"UpdateTask", "task"},
+		{"DeleteEntry", "entry"},
+		{"WatchEvents", "events"},
+		{"DoSomething", "dosomething"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractResource(tt.name)
+			if got != tt.want {
+				t.Errorf("extractResource(%q) = %q, want %q", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToKebabCase(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"DoSomething", "do-something"},
+		{"RunTask", "run-task"},
+		{"hello", "hello"},
+		{"HTMLParser", "h-t-m-l-parser"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := toKebabCase(tt.input)
+			if got != tt.want {
+				t.Errorf("toKebabCase(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

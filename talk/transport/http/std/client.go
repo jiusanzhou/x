@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"go.zoe.im/x"
 	"go.zoe.im/x/talk"
@@ -21,6 +22,7 @@ type Client struct {
 	codec      codec.Codec
 	httpClient *http.Client
 	baseURL    string
+	pathPrefix string
 }
 
 // NewClient creates a new HTTP client transport.
@@ -47,6 +49,15 @@ func NewClient(cfg x.TypedLazyConfig, opts ...thttp.Option) (*Client, error) {
 	return c, nil
 }
 
+// WithClientPathPrefix sets a path prefix for all derived endpoint paths.
+func WithClientPathPrefix(prefix string) thttp.Option {
+	return func(v any) {
+		if c, ok := v.(*Client); ok {
+			c.pathPrefix = strings.TrimSuffix(prefix, "/")
+		}
+	}
+}
+
 func (c *Client) SetCodec(cd codec.Codec) {
 	c.codec = cd
 }
@@ -64,10 +75,26 @@ func (c *Client) Shutdown(ctx context.Context) error {
 }
 
 func (c *Client) Invoke(ctx context.Context, endpoint string, req any, resp any) error {
-	url := c.baseURL + "/" + strings.TrimPrefix(endpoint, "/")
+	var httpMethod string
+	var path string
+
+	if strings.HasPrefix(endpoint, "/") {
+		// Direct path — passthrough
+		httpMethod = http.MethodPost
+		path = endpoint
+	} else {
+		// Method name — derive RESTful path and HTTP method
+		httpMethod, path = deriveClientPath(endpoint)
+		path = c.pathPrefix + path
+	}
+
+	url := c.baseURL + path
 
 	var body io.Reader
-	if req != nil {
+	method := httpMethod
+
+	// For methods with bodies (POST, PUT, PATCH), encode the request
+	if req != nil && (method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch) {
 		data, err := c.codec.Marshal(req)
 		if err != nil {
 			return talk.NewError(talk.InvalidArgument, "failed to encode request")
@@ -75,7 +102,14 @@ func (c *Client) Invoke(ctx context.Context, endpoint string, req any, resp any)
 		body = bytes.NewReader(data)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, body)
+	// For GET/DELETE with a simple ID request, append to path
+	if req != nil && (method == http.MethodGet || method == http.MethodDelete) {
+		if id, ok := req.(string); ok && strings.Contains(url, "{id}") {
+			url = strings.Replace(url, "{id}", id, 1)
+		}
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
 		return talk.NewError(talk.Internal, err.Error())
 	}
@@ -207,6 +241,54 @@ func (s *sseClientStream) Recv(msg any) error {
 func (s *sseClientStream) Close() error {
 	s.closed = true
 	return s.resp.Body.Close()
+}
+
+// deriveClientPath converts a Go method name to an HTTP method + RESTful path,
+// matching the server-side deriveMethodAndPath logic.
+func deriveClientPath(name string) (httpMethod, path string) {
+	resource := extractResource(name)
+
+	switch {
+	case strings.HasPrefix(name, "Get"):
+		return "GET", "/" + resource + "/{id}"
+	case strings.HasPrefix(name, "List"):
+		return "GET", "/" + resource
+	case strings.HasPrefix(name, "Create"):
+		return "POST", "/" + resource
+	case strings.HasPrefix(name, "Update"):
+		return "PUT", "/" + resource + "/{id}"
+	case strings.HasPrefix(name, "Delete"):
+		return "DELETE", "/" + resource + "/{id}"
+	case strings.HasPrefix(name, "Watch"):
+		return "GET", "/" + resource + "/watch"
+	default:
+		return "POST", "/" + toKebabCase(name)
+	}
+}
+
+func extractResource(name string) string {
+	prefixes := []string{"Get", "List", "Create", "Update", "Delete", "Watch"}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(name, prefix) {
+			return strings.ToLower(name[len(prefix):])
+		}
+	}
+	return strings.ToLower(name)
+}
+
+func toKebabCase(s string) string {
+	var result strings.Builder
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				result.WriteRune('-')
+			}
+			result.WriteRune(unicode.ToLower(r))
+		} else {
+			result.WriteRune(r)
+		}
+	}
+	return result.String()
 }
 
 func init() {
